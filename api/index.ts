@@ -1,8 +1,11 @@
-// Test 1: Bare minimum — does the function even respond?
+import express from "express";
 import type { IncomingMessage, ServerResponse } from "http";
 
+const app = express();
+app.get("/api/health", (req, res) => {
+  res.json({ ok: true, msg: "express works in vercel", time: new Date().toISOString() });
+});
+
 export default async function handler(req: IncomingMessage, res: ServerResponse): Promise<void> {
-  res.statusCode = 200;
-  res.setHeader("Content-Type", "application/json");
-  res.end(JSON.stringify({ ok: true, msg: "bare-min works" }));
+  (app as any)(req, res);
 }
