@@ -1091,13 +1091,34 @@ async function startServer(): Promise<void> {
 }
 
 // Kick off async server initialization at module load (works for both Vercel cold-starts and local dev)
-initPromise = startServer().catch(err => {
-  console.error("Failed to start BMB Educom server:", err);
-  if (!process.env.VERCEL) process.exit(1);
-});
+// Capture errors so the function still responds with a diagnostic message
+initPromise = startServer()
+  .then(() => {
+    console.log("[bmb-seminar] startServer() completed successfully");
+  })
+  .catch(err => {
+    console.error("[bmb-seminar] Failed to start server:", err);
+    if (!process.env.VERCEL) process.exit(1);
+  });
 
 // Vercel serverless handler — waits for async setup, then forwards request to Express app
 export default async function handler(req: IncomingMessage, res: ServerResponse): Promise<void> {
-  await initPromise;
-  (app as unknown as (r: IncomingMessage, s: ServerResponse) => void)(req, res);
+  try {
+    await initPromise;
+    if (!app) {
+      res.statusCode = 500;
+      res.setHeader("Content-Type", "application/json");
+      res.end(JSON.stringify({ error: "Express app not initialized", stage: "after-init-promise" }));
+      return;
+    }
+    (app as unknown as (r: IncomingMessage, s: ServerResponse) => void)(req, res);
+  } catch (err: any) {
+    res.statusCode = 500;
+    res.setHeader("Content-Type", "application/json");
+    res.end(JSON.stringify({
+      error: "Function invocation error",
+      message: err?.message,
+      stack: err?.stack?.split("\n").slice(0, 8)
+    }));
+  }
 }
