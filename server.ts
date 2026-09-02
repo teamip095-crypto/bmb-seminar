@@ -3,7 +3,6 @@ import path from "path";
 import fs from "fs";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
-import { createServer as createViteServer } from "vite";
 import { db } from "./server/db/database";
 import { FridayEngine } from "./server/friday-engine";
 import { QuizGenerationService } from "./server/ai/gemini-service";
@@ -1066,7 +1065,9 @@ async function startServer(): Promise<void> {
   // ==========================================
   // VITE DEVELOPMENT & PRODUCTION MIDDLEWARES
   // ==========================================
-  if (process.env.NODE_ENV !== "production") {
+  if (process.env.NODE_ENV !== "production" && !process.env.VERCEL) {
+    // Lazy-load Vite only in local dev (Vite crashes on import in serverless).
+    const { createServer: createViteServer } = await import("vite");
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: "spa"
