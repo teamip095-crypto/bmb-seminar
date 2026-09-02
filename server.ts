@@ -22,6 +22,7 @@ import {
   SeminarSettingsUpdateSchema,
   AdminAccountUpdateSchema
 } from "./server/db/schema";
+import type { IncomingMessage, ServerResponse } from "http";
 
 const PORT = 3000;
 const JWT_SECRET = process.env.JWT_SECRET || "bmb-educom-ai-seminar-secret-jwt-key-2026";
@@ -35,15 +36,21 @@ interface AuthRequest extends Request {
   };
 }
 
-async function startServer() {
-  const app = express();
+// Module-level Express app — synchronous so Vercel can attach handlers immediately
+const app = express();
+let initPromise: Promise<void>;
 
+async function startServer(): Promise<void> {
   // Basic Middlewares
   app.use(express.json({ limit: "10mb" }));
   app.use(express.urlencoded({ extended: true }));
 
   // Initialize DB & Seed Data
-  await db.initialize();
+  try {
+    await db.initialize();
+  } catch (err) {
+    console.error("DB initialization failed (continuing in-memory):", err);
+  }
 
   // Auth Middleware (supports both Authorization header and query token for direct file downloads)
   const authenticateAdmin = (req: AuthRequest, res: Response, next: NextFunction) => {
@@ -1065,7 +1072,9 @@ async function startServer() {
       appType: "spa"
     });
     app.use(vite.middlewares);
-  } else {
+  } else if (!process.env.VERCEL) {
+    // Only needed for traditional Node hosting (npm start).
+    // On Vercel, static assets are served by the platform via outputDirectory: dist.
     const distPath = path.join(process.cwd(), "dist");
     app.use(express.static(distPath));
     app.get("*", (req: Request, res: Response) => {
@@ -1073,12 +1082,21 @@ async function startServer() {
     });
   }
 
-  app.listen(PORT, "0.0.0.0", () => {
-    console.log(`BMB Educom AI Seminar Platform running on http://localhost:${PORT}`);
-  });
+  if (!process.env.VERCEL) {
+    app.listen(PORT, "0.0.0.0", () => {
+      console.log(`BMB Educom AI Seminar Platform running on http://localhost:${PORT}`);
+    });
+  }
 }
 
-startServer().catch(err => {
+// Kick off async server initialization at module load (works for both Vercel cold-starts and local dev)
+initPromise = startServer().catch(err => {
   console.error("Failed to start BMB Educom server:", err);
-  process.exit(1);
+  if (!process.env.VERCEL) process.exit(1);
 });
+
+// Vercel serverless handler — waits for async setup, then forwards request to Express app
+export default async function handler(req: IncomingMessage, res: ServerResponse): Promise<void> {
+  await initPromise;
+  (app as unknown as (r: IncomingMessage, s: ServerResponse) => void)(req, res);
+}
