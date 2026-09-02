@@ -96,8 +96,8 @@ export const AdminCRMView: React.FC<AdminCRMViewProps> = ({ seminarStatus }) => 
 
   // Admin Account Profile & Password State
   const [profileName, setProfileName] = useState(adminUser?.name || "BMB Super Admin");
-  const [profileEmail, setProfileEmail] = useState(adminUser?.email || "admin@bmbeducom.com");
-  const [profileWhatsApp, setProfileWhatsApp] = useState(adminUser?.whatsapp_number || "9829012345");
+  const [profileEmail, setProfileEmail] = useState(adminUser?.email || "ipgroup2002@gmail.com");
+  const [profileWhatsApp, setProfileWhatsApp] = useState(adminUser?.whatsapp_number || "9301056006");
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -158,7 +158,7 @@ export const AdminCRMView: React.FC<AdminCRMViewProps> = ({ seminarStatus }) => 
       setAdminUser(data.admin);
       setProfileName(data.admin?.name || "");
       setProfileEmail(data.admin?.email || "");
-      setProfileWhatsApp(data.admin?.whatsapp_number || "9829012345");
+      setProfileWhatsApp(data.admin?.whatsapp_number || "9301056006");
       localStorage.setItem("bmb_admin_token", data.token);
       localStorage.setItem("bmb_admin_user", JSON.stringify(data.admin));
     } catch (err: any) {
@@ -253,7 +253,7 @@ export const AdminCRMView: React.FC<AdminCRMViewProps> = ({ seminarStatus }) => 
         localStorage.setItem("bmb_admin_user", JSON.stringify(data.admin));
         setProfileName(data.admin.name || "");
         setProfileEmail(data.admin.email || "");
-        setProfileWhatsApp(data.admin.whatsapp_number || "9829012345");
+        setProfileWhatsApp(data.admin.whatsapp_number || "9301056006");
         setShowForgotPasswordModal(false);
         setLoginWhatsApp("");
         setLoginPassword("");
@@ -519,7 +519,7 @@ export const AdminCRMView: React.FC<AdminCRMViewProps> = ({ seminarStatus }) => 
                   type="tel"
                   required
                   maxLength={10}
-                  placeholder="उदा. 9829012345"
+                  placeholder="उदा. 9301056006"
                   value={loginWhatsApp}
                   onChange={e => setLoginWhatsApp(e.target.value.replace(/\D/g, ""))}
                   className="w-full bg-neutral-950 border border-neutral-800 focus:border-amber-500 rounded-xl py-2.5 pl-9 pr-3 text-xs text-white focus:outline-none font-mono"
@@ -647,7 +647,7 @@ export const AdminCRMView: React.FC<AdminCRMViewProps> = ({ seminarStatus }) => 
                         type="tel"
                         required
                         maxLength={10}
-                        placeholder="उदा. 9829012345"
+                        placeholder="उदा. 9301056006"
                         value={forgotIdentifier}
                         onChange={e => setForgotIdentifier(e.target.value.replace(/\D/g, ""))}
                         className="w-full bg-neutral-950 border border-neutral-800 focus:border-emerald-500 rounded-xl py-2.5 pl-9 pr-3 text-xs text-white focus:outline-none font-mono"
@@ -1396,7 +1396,7 @@ export const AdminCRMView: React.FC<AdminCRMViewProps> = ({ seminarStatus }) => 
                     maxLength={10}
                     value={profileWhatsApp}
                     onChange={e => setProfileWhatsApp(e.target.value.replace(/\D/g, ""))}
-                    placeholder="उदा. 9829012345"
+                    placeholder="उदा. 9301056006"
                     className="w-full bg-neutral-950 border border-neutral-800 rounded-xl py-2.5 pl-9 pr-3 text-xs text-white focus:outline-none focus:border-emerald-500 font-mono"
                   />
                   <Smartphone className="w-4 h-4 text-emerald-400 absolute left-3 top-1/2 -translate-y-1/2" />

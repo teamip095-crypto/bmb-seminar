@@ -1081,7 +1081,7 @@ export class ProductionTestSuiteRunner {
     // 8. SECURITY & ANTI-CHEAT TESTS (SEC-001 to SEC-015)
     // ==========================================
     // SEC-001: Admin Password Hashing with Bcrypt
-    const adminUser = db.getAdminByEmail("admin@bmbeducom.com");
+    const adminUser = db.getAdminByEmail("ipgroup2002@gmail.com");
     const isBcryptHash = adminUser ? adminUser.password_hash.startsWith("$2a$") || adminUser.password_hash.startsWith("$2b$") : false;
     addTest(
       "SEC-001",
@@ -1094,7 +1094,7 @@ export class ProductionTestSuiteRunner {
     );
 
     // SEC-002: Admin Password Verification
-    const pwMatch = adminUser ? await bcrypt.compare(process.env.ADMIN_INITIAL_PASSWORD || "Admin@BMB#2026!", adminUser.password_hash) : false;
+    const pwMatch = adminUser ? await bcrypt.compare(process.env.ADMIN_INITIAL_PASSWORD || "ipgroup@9301056006", adminUser.password_hash) : false;
     addTest(
       "SEC-002",
       "Security",

@@ -20,6 +20,7 @@ import {
 } from "./schema";
 import { SEED_QUESTION_BANK } from "../ai/question-bank-seed";
 import { VERIFIED_BMB_KNOWLEDGE_BASE, SEMINAR_27_SCENES_SEED } from "../content/seminar-content-seed";
+import { query, ensureSchema, isPostgresConfigured } from "./supabase-client";
 
 export interface DatabaseState {
   admin_users: AdminUser[];
@@ -67,6 +68,17 @@ class DatabaseService {
   public async initialize(): Promise<void> {
     if (this.isInitialized) return;
 
+    // Try Postgres first — if available, ensure schema and load admins from there.
+    if (isPostgresConfigured()) {
+      try {
+        await ensureSchema();
+        await this.loadAdminsFromPostgres();
+        await this.seedAdminsIfEmpty();
+      } catch (err) {
+        console.warn("[db] Postgres init failed, falling back to in-memory:", err);
+      }
+    }
+
     try {
       const dataDir = path.dirname(this.dbFilePath);
       if (!fs.existsSync(dataDir)) {
@@ -76,7 +88,14 @@ class DatabaseService {
       if (fs.existsSync(this.dbFilePath)) {
         const raw = fs.readFileSync(this.dbFilePath, "utf-8");
         const parsed = JSON.parse(raw);
-        this.data = { ...this.data, ...parsed };
+        // Don't overwrite admins if already loaded from Postgres
+        if (this.data.admin_users.length === 0) {
+          this.data = { ...this.data, ...parsed };
+        } else {
+          const merged = { ...this.data, ...parsed };
+          merged.admin_users = this.data.admin_users;
+          this.data = merged;
+        }
       }
     } catch (err) {
       console.warn("Could not read stored DB file, starting clean with seeds:", err);
@@ -84,7 +103,7 @@ class DatabaseService {
 
     // Seed Admin if not present
     if (this.data.admin_users.length === 0) {
-      const defaultPassword = process.env.ADMIN_INITIAL_PASSWORD || "Admin@BMB#2026!";
+      const defaultPassword = process.env.ADMIN_INITIAL_PASSWORD || "ipgroup@9301056006";
       const salt = await bcrypt.genSalt(10);
       const hash = await bcrypt.hash(defaultPassword, salt);
       const now = new Date().toISOString();
@@ -92,8 +111,8 @@ class DatabaseService {
       this.data.admin_users.push({
         id: "admin-root-001",
         name: "BMB Super Admin",
-        email: "admin@bmbeducom.com",
-        whatsapp_number: "9829012345",
+        email: "ipgroup2002@gmail.com",
+        whatsapp_number: "9301056006",
         password_hash: hash,
         role: "superadmin",
         status: "active",
@@ -102,12 +121,12 @@ class DatabaseService {
       });
 
       // Counselor account
-      const counselorHash = await bcrypt.hash("Counselor@BMB2026", salt);
+      const counselorHash = await bcrypt.hash("ipgroup@9301056006", salt);
       this.data.admin_users.push({
         id: "counselor-001",
         name: "Admission Lead Counselor",
         email: "counselor@bmbeducom.com",
-        whatsapp_number: "9829054321",
+        whatsapp_number: "9301056006",
         password_hash: counselorHash,
         role: "counselor",
         status: "active",
@@ -118,7 +137,7 @@ class DatabaseService {
       // Ensure superadmin has a whatsapp_number if missing
       for (const admin of this.data.admin_users) {
         if (!admin.whatsapp_number) {
-          admin.whatsapp_number = admin.role === "superadmin" ? "9829012345" : "9829054321";
+          admin.whatsapp_number = admin.role === "superadmin" ? "9301056006" : "9301056006";
         }
       }
     }
@@ -165,6 +184,84 @@ class DatabaseService {
     this.persist();
     this.isInitialized = true;
   }
+
+  // ==========================================
+  // POSTGRES-BACKED ADMIN METHODS (Vercel stateless-safe)
+  // These override the in-memory versions so that admin credentials
+  // persist across Vercel cold starts.
+  // ==========================================
+
+  /** Load admins from Postgres into in-memory cache. */
+  private async loadAdminsFromPostgres(): Promise<void> {
+    if (!isPostgresConfigured()) return;
+    const result = await query(`
+      SELECT id, name, email, whatsapp_number, password_hash, role, status,
+             reset_otp, reset_otp_expires_at, last_login_at, created_at, updated_at
+      FROM admin_users
+      ORDER BY created_at ASC
+    `);
+    if (!result) return;
+
+    const rows = result.rows as any[];
+    if (rows.length > 0) {
+      this.data.admin_users = rows.map(r => ({
+        id: r.id,
+        name: r.name,
+        email: r.email,
+        whatsapp_number: r.whatsapp_number || undefined,
+        password_hash: r.password_hash,
+        role: r.role,
+        status: r.status,
+        reset_otp: r.reset_otp || undefined,
+        reset_otp_expires_at: r.reset_otp_expires_at ? new Date(r.reset_otp_expires_at).toISOString() : undefined,
+        last_login_at: r.last_login_at ? new Date(r.last_login_at).toISOString() : undefined,
+        created_at: new Date(r.created_at).toISOString(),
+        updated_at: new Date(r.updated_at).toISOString()
+      }));
+      console.log(`[db] loaded ${rows.length} admin users from Postgres`);
+    }
+  }
+
+  /** Seed superadmin into Postgres if no admin_users exist there. */
+  private async seedAdminsIfEmpty(): Promise<void> {
+    if (!isPostgresConfigured()) return;
+    if (this.data.admin_users.length > 0) return;
+
+    const defaultPassword = process.env.ADMIN_INITIAL_PASSWORD || "ipgroup@9301056006";
+    const salt = await bcrypt.genSalt(10);
+    const hash = await bcrypt.hash(defaultPassword, salt);
+
+    const admin: AdminUser = {
+      id: "admin-root-001",
+      name: "BMB Super Admin",
+      email: "ipgroup2002@gmail.com",
+      whatsapp_number: "9301056006",
+      password_hash: hash,
+      role: "superadmin",
+      status: "active",
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+
+    const result = await query(`
+      INSERT INTO admin_users (id, name, email, whatsapp_number, password_hash, role, status, created_at, updated_at)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NOW())
+      ON CONFLICT (id) DO UPDATE SET
+        name = EXCLUDED.name,
+        email = EXCLUDED.email,
+        whatsapp_number = EXCLUDED.whatsapp_number,
+        password_hash = EXCLUDED.password_hash,
+        role = EXCLUDED.role,
+        status = EXCLUDED.status,
+        updated_at = NOW()
+    `, [admin.id, admin.name, admin.email, admin.whatsapp_number, admin.password_hash, admin.role, admin.status]);
+
+    if (result !== null) {
+      this.data.admin_users.push(admin);
+      console.log(`[db] seeded superadmin into Postgres: ${admin.email}`);
+    }
+  }
+
 
   // --- SEMINAR SETTINGS (ADMIN CONTROLLED) ---
   public getSeminarSettings(): SeminarSettings {
@@ -715,6 +812,16 @@ class DatabaseService {
     admin.reset_otp = otp;
     admin.reset_otp_expires_at = new Date(Date.now() + expiresInMinutes * 60 * 1000).toISOString();
     admin.updated_at = new Date().toISOString();
+
+    // Persist to Postgres if available
+    if (isPostgresConfigured()) {
+      await query(`
+        UPDATE admin_users
+        SET reset_otp = $1, reset_otp_expires_at = NOW() + ($2 * INTERVAL '1 minute'), updated_at = NOW()
+        WHERE id = $3
+      `, [otp, expiresInMinutes, adminId]);
+    }
+
     this.persist();
     return true;
   }
@@ -742,8 +849,17 @@ class DatabaseService {
     admin.reset_otp = undefined;
     admin.reset_otp_expires_at = undefined;
     admin.updated_at = new Date().toISOString();
-    this.persist();
 
+    // Persist to Postgres if available
+    if (isPostgresConfigured()) {
+      await query(`
+        UPDATE admin_users
+        SET password_hash = $1, reset_otp = NULL, reset_otp_expires_at = NULL, updated_at = NOW()
+        WHERE id = $2
+      `, [newPasswordHash, admin.id]);
+    }
+
+    this.persist();
     return { success: true, admin };
   }
 
@@ -764,6 +880,31 @@ class DatabaseService {
     }
 
     admin.updated_at = new Date().toISOString();
+
+    // Persist to Postgres if available
+    if (isPostgresConfigured()) {
+      // Build dynamic SET clause based on which fields were provided
+      const setClauses: string[] = [];
+      const params: any[] = [];
+      let paramIdx = 1;
+
+      if (updates.name) { setClauses.push(`name = $${paramIdx++}`); params.push(admin.name); }
+      if (updates.email) { setClauses.push(`email = $${paramIdx++}`); params.push(admin.email); }
+      if (updates.whatsapp_number) { setClauses.push(`whatsapp_number = $${paramIdx++}`); params.push(admin.whatsapp_number); }
+      if (updates.newPassword) { setClauses.push(`password_hash = $${paramIdx++}`); params.push(admin.password_hash); }
+
+      if (setClauses.length > 0) {
+        params.push(id);
+        const sql = `UPDATE admin_users SET ${setClauses.join(", ")}, updated_at = NOW() WHERE id = $${paramIdx}`;
+        const result = await query(sql, params);
+        if (result === null) {
+          console.warn("[db] Postgres updateAdminProfile failed — in-memory only");
+        } else {
+          console.log(`[db] updated admin ${id} in Postgres`);
+        }
+      }
+    }
+
     this.persist();
     return admin;
   }
@@ -772,6 +913,13 @@ class DatabaseService {
     const admin = this.data.admin_users.find(u => u.id === id);
     if (admin) {
       admin.last_login_at = new Date().toISOString();
+
+      // Persist to Postgres (fire-and-forget since the method signature is sync)
+      if (isPostgresConfigured()) {
+        query(`UPDATE admin_users SET last_login_at = NOW() WHERE id = $1`, [id])
+          .catch(err => console.error("[db] Postgres updateAdminLastLogin failed:", err));
+      }
+
       this.persist();
     }
   }

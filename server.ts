@@ -672,7 +672,7 @@ async function startServer(): Promise<void> {
         });
       }
 
-      const adminPhone = admin.whatsapp_number || "9829012345";
+      const adminPhone = admin.whatsapp_number || "9301056006";
       // Generate secure 6-digit OTP
       const otp = Math.floor(100000 + Math.random() * 900000).toString();
       await db.setAdminResetOTP(admin.id, otp, 15);
