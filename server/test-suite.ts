@@ -315,9 +315,6 @@ export class ProductionTestSuiteRunner {
     if (budgetExceeded()) {
       addTest("FRI-SKIP", "Friday Engine", "Skipped due to time budget", "N/A", "skipped", true, "Time budget exceeded");
     } else {
-    if (budgetExceeded()) {
-      addTest("FRI-SKIP", "Friday Engine", "Skipped due to time budget", "N/A", "skipped", true, "Time budget exceeded");
-    } else {
     // FRI-001: Friday before 11:00 AM IST
     const fridayMorning = new Date("2026-09-04T03:30:00.000Z"); // 09:00 AM IST
     const resFriMorn = FridayEngine.computeTargetFridayDate(fridayMorning);
@@ -1412,6 +1409,25 @@ export class ProductionTestSuiteRunner {
       addTest("ADV-SKIP", "Adversarial", "Skipped due to time budget", "N/A", "skipped", true, "Time budget exceeded");
     } else {
     // ADV-001: SQL Injection Protection on Search
+    // Create a fresh quiz attempt here (independent of QZ section being skipped or not).
+    const advCreatedAttempt = db.createQuizAttempt(
+      {
+        seminar_event_id: currentSeminar.event.id,
+        participant_id: createdReg.id,
+        attempt_token_hash: AntiCheatService.hashToken(AntiCheatService.generateSecureToken()),
+        started_at: new Date().toISOString(),
+        expires_at: new Date(Date.now() + 120000).toISOString(),
+        status: "in_progress"
+      },
+      // Minimal questions array so createQuizAttempt accepts the call
+      db.getActiveQuestionBank().slice(0, 4).map(q => ({
+        questionId: q.id,
+        question: q.question,
+        options: q.options,
+        correctOption: q.correct_option
+      }))
+    ).attempt;
+
     const sqlInjectionQuery = "' OR '1'='1' --";
     const injectionFilter = db.getAllRegistrations({ search: sqlInjectionQuery });
     addTest(
@@ -1455,7 +1471,7 @@ export class ProductionTestSuiteRunner {
 
     // ADV-004: Tampered Non-Existent Quiz Question ID
     const bogusAnsResult = db.recordSubmissionAndScoring({
-      attemptId: createdAttempt.id,
+      attemptId: advCreatedAttempt.id,
       answers: [{ quizQuestionId: "bogus-qq-id-9999", selectedOption: 0 }]
     });
     addTest(
@@ -1499,6 +1515,30 @@ export class ProductionTestSuiteRunner {
       categoryBreakdown,
       results
     };
+    } catch (err) {
+      console.error("[QA Tests] Error during test suite execution:", err);
+      const pCount = results.filter(r => r.status === "PASS").length;
+      const fCount = results.filter(r => r.status === "FAIL").length;
+      const sCount = results.filter(r => r.status === "SKIP").length;
+      const catBreakdown: Record<string, { total: number; passed: number; failed: number }> = {};
+      for (const r of results) {
+        if (!catBreakdown[r.category]) catBreakdown[r.category] = { total: 0, passed: 0, failed: 0 };
+        catBreakdown[r.category].total += 1;
+        if (r.status === "PASS") catBreakdown[r.category].passed += 1;
+        else if (r.status === "FAIL") catBreakdown[r.category].failed += 1;
+      }
+      return {
+        total: results.length,
+        passed: pCount,
+        failed: fCount,
+        skipped: sCount,
+        truncated: true,
+        truncateReason: `Test suite crashed: ${(err as Error)?.message}`,
+        durationMs: Date.now() - startTime,
+        timestamp: new Date().toISOString(),
+        categoryBreakdown: catBreakdown,
+        results
+      };
     } finally {
       db.restoreDataState(snapshotBeforeTests);
     }
