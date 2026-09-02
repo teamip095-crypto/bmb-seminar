@@ -258,6 +258,66 @@ async function startServer() {
     res.redirect(OFFICIAL_BROCHURE_URL);
   });
 
+  // 2.2 Direct Mobile-Friendly Video Stream Endpoint
+  const GOOGLE_DRIVE_VIDEO_ID = "1lxitztPNHlEyRCzR720OVvbn_QoHXn12";
+  app.get("/api/video/stream", async (req: Request, res: Response) => {
+    try {
+      const driveDownloadUrl = `https://drive.usercontent.google.com/download?id=${GOOGLE_DRIVE_VIDEO_ID}&export=download&confirm=t`;
+      
+      const headers: Record<string, string> = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+      };
+      if (req.headers.range) {
+        headers["Range"] = req.headers.range;
+      }
+
+      const response = await fetch(driveDownloadUrl, { headers });
+      
+      if (!response.ok && response.status !== 206) {
+        // Fallback to alternative Google Drive direct link redirect
+        return res.redirect(`https://drive.google.com/uc?export=download&id=${GOOGLE_DRIVE_VIDEO_ID}`);
+      }
+
+      res.status(response.status);
+      response.headers.forEach((val, key) => {
+        if (["content-type", "content-length", "content-range", "accept-ranges"].includes(key.toLowerCase())) {
+          res.setHeader(key, val);
+        }
+      });
+      res.setHeader("Content-Type", response.headers.get("content-type") || "video/mp4");
+      res.setHeader("Accept-Ranges", "bytes");
+
+      if (response.body) {
+        // @ts-ignore
+        const reader = response.body.getReader();
+        const stream = new ReadableStream({
+          start(controller) {
+            function push() {
+              reader.read().then(({ done, value }: any) => {
+                if (done) {
+                  controller.close();
+                  res.end();
+                  return;
+                }
+                res.write(Buffer.from(value));
+                push();
+              }).catch((err: any) => {
+                controller.error(err);
+                res.end();
+              });
+            }
+            push();
+          }
+        });
+      } else {
+        res.redirect(`https://drive.google.com/uc?export=download&id=${GOOGLE_DRIVE_VIDEO_ID}`);
+      }
+    } catch (err) {
+      console.warn("Direct stream proxy fallback to redirect:", err);
+      res.redirect(`https://drive.google.com/uc?export=download&id=${GOOGLE_DRIVE_VIDEO_ID}`);
+    }
+  });
+
   // 3. Authenticate Participant by Token
   app.get("/api/participant/:token", async (req: Request, res: Response) => {
     try {
