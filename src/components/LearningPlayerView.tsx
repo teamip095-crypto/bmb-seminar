@@ -2,13 +2,9 @@ import React, { useState, useEffect } from "react";
 import { ParticipantProfile } from "../types";
 import {
   Sparkles,
-  ExternalLink,
   Award,
   ArrowRight,
   ShieldCheck,
-  RotateCcw,
-  Maximize2,
-  Tv,
   CheckCircle2,
   Video
 } from "lucide-react";
@@ -22,12 +18,9 @@ export const LearningPlayerView: React.FC<LearningPlayerViewProps> = ({
   participant,
   onProceedToQuiz
 }) => {
-  const [iframeKey, setIframeKey] = useState<number>(0);
+  const [iframeKey] = useState<number>(0);
   const [isIframeLoaded, setIsIframeLoaded] = useState<boolean>(false);
   const [streamUrl, setStreamUrl] = useState<string>("https://drive.google.com/file/d/1lxitztPNHlEyRCzR720OVvbn_QoHXn12/preview?autoplay=1&loop=1");
-
-  // Official short link provided by user
-  const OFFICIAL_VIDEO_LINK = "https://l1nk.dev/3hak199";
 
   useEffect(() => {
     fetch("/api/seminar/settings")
@@ -40,60 +33,34 @@ export const LearningPlayerView: React.FC<LearningPlayerViewProps> = ({
       .catch(() => {});
   }, []);
 
-  const handleReload = () => {
-    setIsIframeLoaded(false);
-    setIframeKey(prev => prev + 1);
-  };
-
   return (
-    <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-6">
+    <div className="max-w-6xl mx-auto px-3 sm:px-6 py-4 sm:py-8 space-y-4 sm:space-y-6">
       {/* Header Bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-neutral-900 border border-neutral-800 rounded-3xl p-5 sm:p-6 shadow-xl">
-        <div className="flex items-center gap-3.5">
-          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-amber-400 via-amber-500 to-amber-600 flex items-center justify-center text-neutral-950 font-black shadow-lg shadow-amber-500/20">
-            <Video className="w-6 h-6" />
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 bg-neutral-900 border border-neutral-800 rounded-2xl sm:rounded-3xl p-4 sm:p-6 shadow-xl">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-gradient-to-br from-amber-400 via-amber-500 to-amber-600 flex items-center justify-center text-neutral-950 font-black shadow-lg shadow-amber-500/20 flex-shrink-0">
+            <Video className="w-5 h-5 sm:w-6 sm:h-6" />
           </div>
           <div>
-            <div className="flex items-center gap-2">
-              <h2 className="text-lg sm:text-xl font-black text-white tracking-tight">
+            <div className="flex items-center gap-1.5 sm:gap-2">
+              <h2 className="text-base sm:text-xl font-black text-white tracking-tight">
                 About AI (AI के बारे में)
               </h2>
-              <span className="text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30 px-2 py-0.5 rounded-full">
-                HD DIRECT STREAM
+              <span className="text-[9px] sm:text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30 px-1.5 py-0.5 rounded-full">
+                HD STREAM
               </span>
             </div>
-            <p className="text-xs text-neutral-400 mt-0.5">
-              BMB Educom AI Friday Masterclass • Official Video Session
+            <p className="text-[11px] sm:text-xs text-neutral-400 mt-0.5">
+              BMB Educom AI Friday Masterclass • Official Video
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-2.5 flex-wrap">
-          <button
-            id="btn-reload-video"
-            onClick={handleReload}
-            title="Reload Video Stream"
-            className="px-3 py-2 rounded-xl bg-neutral-950 border border-neutral-800 hover:border-neutral-700 text-neutral-300 hover:text-white text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer"
-          >
-            <RotateCcw className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">रीलोड करें</span>
-          </button>
-
-          <a
-            id="btn-direct-video-link"
-            href={OFFICIAL_VIDEO_LINK}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="px-3.5 py-2 rounded-xl bg-neutral-950 border border-amber-500/40 hover:border-amber-400 text-amber-300 hover:text-amber-200 text-xs font-bold flex items-center gap-1.5 shadow-sm transition-all cursor-pointer"
-          >
-            <ExternalLink className="w-3.5 h-3.5" />
-            <span>डायरेक्ट लिंक (l1nk.dev)</span>
-          </a>
-
+        <div className="flex items-center gap-2">
           <button
             id="btn-about-ai-proceed-quiz"
             onClick={onProceedToQuiz}
-            className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-neutral-950 text-xs font-bold flex items-center gap-1.5 shadow-lg shadow-amber-500/20 transition-all cursor-pointer"
+            className="px-4 py-2 sm:px-5 sm:py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-neutral-950 text-xs sm:text-sm font-bold flex items-center gap-1.5 shadow-lg shadow-amber-500/20 transition-all cursor-pointer"
           >
             <Award className="w-4 h-4" />
             <span>2-Min Quiz दें</span>
@@ -110,7 +77,7 @@ export const LearningPlayerView: React.FC<LearningPlayerViewProps> = ({
             <div className="absolute inset-0 flex flex-col items-center justify-center bg-neutral-950 text-neutral-400 z-10 gap-3">
               <div className="w-10 h-10 border-3 border-amber-500 border-t-transparent rounded-full animate-spin" />
               <p className="text-xs font-medium text-amber-200 animate-pulse">
-                About AI वीडियो लोड हो रहा है (Direct Stream)...
+                About AI वीडियो लोड हो रहा है...
               </p>
             </div>
           )}
@@ -130,17 +97,8 @@ export const LearningPlayerView: React.FC<LearningPlayerViewProps> = ({
         <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 px-2 pt-1">
           <div className="flex items-center gap-3">
             <div className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
-            <div className="text-xs text-neutral-300">
-              <span className="font-semibold text-white">स्मूथ ऑटोप्ले:</span> यदि वीडियो ऑटोप्ले में कोई रुकावट आए तो ऊपर दिए गए{" "}
-              <a
-                href={OFFICIAL_VIDEO_LINK}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-amber-400 underline font-semibold hover:text-amber-300"
-              >
-                डायरेक्ट लिंक
-              </a>{" "}
-              पर क्लिक करें।
+            <div className="text-xs text-neutral-300 font-medium">
+              BMB Educom AI Masterclass Live Video Stream
             </div>
           </div>
 

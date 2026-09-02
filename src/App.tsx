@@ -86,7 +86,7 @@ export default function App() {
       <WinnerTicker />
 
       {/* Main Content Body */}
-      <main className="flex-1">
+      <main className="flex-1 w-full max-w-full overflow-x-hidden pb-24 md:pb-8">
         {activeTab === "registration" && (
           <RegistrationView
             seminarStatus={seminarStatus}
@@ -122,7 +122,7 @@ export default function App() {
       </main>
 
       {/* Modern Footer */}
-      <footer className="bg-neutral-900 border-t border-neutral-800 text-neutral-400 py-8 px-4 sm:px-6 lg:px-8 mt-16 text-xs">
+      <footer className="bg-neutral-900 border-t border-neutral-800 text-neutral-400 py-6 sm:py-8 px-4 sm:px-6 lg:px-8 mt-8 sm:mt-16 text-xs mb-16 md:mb-0">
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2">
             <div className="w-6 h-6 rounded-lg bg-amber-500/20 text-amber-400 flex items-center justify-center font-bold">

@@ -832,19 +832,19 @@ export const AdminCRMView: React.FC<AdminCRMViewProps> = ({ seminarStatus }) => 
   const m = dashboardData.metrics;
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+    <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6">
       {/* Top Header & Admin Bar */}
-      <div className="flex flex-wrap items-center justify-between gap-4 bg-neutral-900 border border-neutral-800 rounded-2xl p-4 mb-6 shadow-xl">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400">
-            <Shield className="w-5 h-5" />
+      <div className="flex flex-wrap items-center justify-between gap-3 sm:gap-4 bg-neutral-900 border border-neutral-800 rounded-2xl p-3.5 sm:p-4 mb-4 sm:mb-6 shadow-xl">
+        <div className="flex items-center gap-2.5 sm:gap-3">
+          <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400 flex-shrink-0">
+            <Shield className="w-4 h-4 sm:w-5 sm:h-5" />
           </div>
           <div>
-            <h2 className="text-sm sm:text-base font-bold text-white">
+            <h2 className="text-xs sm:text-base font-bold text-white">
               BMB Super Admin & CRM Command Center
             </h2>
-            <p className="text-[11px] text-neutral-400">
-              Logged in as: <strong className="text-amber-400">{adminUser?.name}</strong> ({adminUser?.role})
+            <p className="text-[10px] sm:text-[11px] text-neutral-400">
+              Logged in: <strong className="text-amber-400">{adminUser?.name}</strong> ({adminUser?.role})
             </p>
           </div>
         </div>
@@ -852,16 +852,16 @@ export const AdminCRMView: React.FC<AdminCRMViewProps> = ({ seminarStatus }) => 
         <div className="flex items-center gap-2">
           <button
             onClick={fetchDashboard}
-            className="p-2 rounded-xl bg-neutral-950 border border-neutral-800 text-neutral-300 hover:text-white"
+            className="p-1.5 sm:p-2 rounded-xl bg-neutral-950 border border-neutral-800 text-neutral-300 hover:text-white"
             title="Refresh Data"
           >
-            <RefreshCw className={`w-4 h-4 ${loadingDashboard ? "animate-spin" : ""}`} />
+            <RefreshCw className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${loadingDashboard ? "animate-spin" : ""}`} />
           </button>
 
           <button
             id="btn-admin-logout"
             onClick={handleLogout}
-            className="flex items-center gap-1.5 bg-neutral-950 hover:bg-neutral-800 border border-neutral-800 text-neutral-300 px-3 py-1.5 rounded-xl text-xs"
+            className="flex items-center gap-1 bg-neutral-950 hover:bg-neutral-800 border border-neutral-800 text-neutral-300 px-2.5 py-1.5 sm:px-3 rounded-xl text-xs"
           >
             <LogOut className="w-3.5 h-3.5" />
             <span>Sign Out</span>
@@ -871,91 +871,91 @@ export const AdminCRMView: React.FC<AdminCRMViewProps> = ({ seminarStatus }) => 
 
       {/* Metrics Row */}
       {m && (
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
-          <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-3.5">
-            <span className="text-[10px] text-neutral-400 uppercase font-bold tracking-wider">Total Leads</span>
-            <div className="text-xl font-bold text-white mt-1 font-mono">{m.totalRegistrations}</div>
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-3 mb-4 sm:mb-6">
+          <div className="bg-neutral-900 border border-neutral-800 rounded-xl sm:rounded-2xl p-3 sm:p-3.5">
+            <span className="text-[9px] sm:text-[10px] text-neutral-400 uppercase font-bold tracking-wider">Total Leads</span>
+            <div className="text-lg sm:text-xl font-bold text-white mt-0.5 sm:mt-1 font-mono">{m.totalRegistrations}</div>
           </div>
-          <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-3.5">
-            <span className="text-[10px] text-amber-400 uppercase font-bold tracking-wider">Friday Event</span>
-            <div className="text-xl font-bold text-amber-400 mt-1 font-mono">{m.activeEventRegistrations}</div>
+          <div className="bg-neutral-900 border border-neutral-800 rounded-xl sm:rounded-2xl p-3 sm:p-3.5">
+            <span className="text-[9px] sm:text-[10px] text-amber-400 uppercase font-bold tracking-wider">Friday Event</span>
+            <div className="text-lg sm:text-xl font-bold text-amber-400 mt-0.5 sm:mt-1 font-mono">{m.activeEventRegistrations}</div>
           </div>
-          <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-3.5">
-            <span className="text-[10px] text-emerald-400 uppercase font-bold tracking-wider">Quizzes Taken</span>
-            <div className="text-xl font-bold text-emerald-400 mt-1 font-mono">{m.quizCompleted}</div>
+          <div className="bg-neutral-900 border border-neutral-800 rounded-xl sm:rounded-2xl p-3 sm:p-3.5">
+            <span className="text-[9px] sm:text-[10px] text-emerald-400 uppercase font-bold tracking-wider">Quizzes Taken</span>
+            <div className="text-lg sm:text-xl font-bold text-emerald-400 mt-0.5 sm:mt-1 font-mono">{m.quizCompleted}</div>
           </div>
-          <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-3.5">
-            <span className="text-[10px] text-sky-400 uppercase font-bold tracking-wider">Avg Score</span>
-            <div className="text-xl font-bold text-sky-400 mt-1 font-mono">{m.averageScore} / 4</div>
+          <div className="bg-neutral-900 border border-neutral-800 rounded-xl sm:rounded-2xl p-3 sm:p-3.5">
+            <span className="text-[9px] sm:text-[10px] text-sky-400 uppercase font-bold tracking-wider">Avg Score</span>
+            <div className="text-lg sm:text-xl font-bold text-sky-400 mt-0.5 sm:mt-1 font-mono">{m.averageScore} / 4</div>
           </div>
-          <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-3.5">
-            <span className="text-[10px] text-amber-300 uppercase font-bold tracking-wider">4/4 Scorers</span>
-            <div className="text-xl font-bold text-amber-300 mt-1 font-mono">{m.topPerformersCount}</div>
+          <div className="bg-neutral-900 border border-neutral-800 rounded-xl sm:rounded-2xl p-3 sm:p-3.5">
+            <span className="text-[9px] sm:text-[10px] text-amber-300 uppercase font-bold tracking-wider">4/4 Scorers</span>
+            <div className="text-lg sm:text-xl font-bold text-amber-300 mt-0.5 sm:mt-1 font-mono">{m.topPerformersCount}</div>
           </div>
-          <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-3.5">
-            <span className="text-[10px] text-neutral-400 uppercase font-bold tracking-wider">WhatsApp Sent</span>
-            <div className="text-xl font-bold text-white mt-1 font-mono">{m.whatsAppStats?.sent || 0}</div>
+          <div className="bg-neutral-900 border border-neutral-800 rounded-xl sm:rounded-2xl p-3 sm:p-3.5">
+            <span className="text-[9px] sm:text-[10px] text-neutral-400 uppercase font-bold tracking-wider">WhatsApp Sent</span>
+            <div className="text-lg sm:text-xl font-bold text-white mt-0.5 sm:mt-1 font-mono">{m.whatsAppStats?.sent || 0}</div>
           </div>
         </div>
       )}
 
       {/* Sub-Navigation Tabs */}
-      <div className="flex flex-wrap items-center gap-2 mb-6 border-b border-neutral-800 pb-3">
+      <div className="flex items-center gap-1.5 sm:gap-2 mb-4 sm:mb-6 border-b border-neutral-800 pb-2.5 sm:pb-3 overflow-x-auto no-scrollbar">
         <button
           onClick={() => setActiveSubTab("crm")}
-          className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold ${
+          className={`flex items-center gap-1.5 px-3 sm:px-3.5 py-1.5 sm:py-2 rounded-xl text-xs font-semibold whitespace-nowrap flex-shrink-0 transition-all ${
             activeSubTab === "crm"
-              ? "bg-amber-500 text-neutral-950 shadow-md"
+              ? "bg-amber-500 text-neutral-950 shadow-md font-bold"
               : "bg-neutral-900 text-neutral-300 hover:text-white"
           }`}
         >
           <Users className="w-3.5 h-3.5" />
-          <span>Admission CRM Leads ({leadsList.length})</span>
+          <span>Admission CRM ({leadsList.length})</span>
         </button>
 
         <button
           id="tab-admin-seminar-settings"
           onClick={() => setActiveSubTab("settings")}
-          className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold ${
+          className={`flex items-center gap-1.5 px-3 sm:px-3.5 py-1.5 sm:py-2 rounded-xl text-xs font-semibold whitespace-nowrap flex-shrink-0 transition-all ${
             activeSubTab === "settings"
-              ? "bg-amber-500 text-neutral-950 shadow-md"
+              ? "bg-amber-500 text-neutral-950 shadow-md font-bold"
               : "bg-neutral-900 text-neutral-300 hover:text-white"
           }`}
         >
           <Calendar className="w-3.5 h-3.5" />
-          <span>सेमिनार दिनांक, स्थान व लाइव स्ट्रीम</span>
+          <span>सेमिनार दिनांक व लाइव स्ट्रीम</span>
         </button>
 
         <button
           id="tab-admin-account-security"
           onClick={() => setActiveSubTab("account")}
-          className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold ${
+          className={`flex items-center gap-1.5 px-3 sm:px-3.5 py-1.5 sm:py-2 rounded-xl text-xs font-semibold whitespace-nowrap flex-shrink-0 transition-all ${
             activeSubTab === "account"
-              ? "bg-amber-500 text-neutral-950 shadow-md"
+              ? "bg-amber-500 text-neutral-950 shadow-md font-bold"
               : "bg-neutral-900 text-neutral-300 hover:text-white"
           }`}
         >
           <Key className="w-3.5 h-3.5" />
-          <span>एडमिन प्रोफाइल व पासवर्ड बदलें</span>
+          <span>एडमिन पासवर्ड बदलें</span>
         </button>
 
         <button
           onClick={() => setActiveSubTab("qa_tests")}
-          className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold ${
+          className={`flex items-center gap-1.5 px-3 sm:px-3.5 py-1.5 sm:py-2 rounded-xl text-xs font-semibold whitespace-nowrap flex-shrink-0 transition-all ${
             activeSubTab === "qa_tests"
-              ? "bg-amber-500 text-neutral-950 shadow-md"
+              ? "bg-amber-500 text-neutral-950 shadow-md font-bold"
               : "bg-neutral-900 text-neutral-300 hover:text-white"
           }`}
         >
           <Award className="w-3.5 h-3.5" />
-          <span>100+ Production QA Tests</span>
+          <span>100+ QA Tests</span>
         </button>
 
         <button
           onClick={() => setActiveSubTab("whatsapp")}
-          className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold ${
+          className={`flex items-center gap-1.5 px-3 sm:px-3.5 py-1.5 sm:py-2 rounded-xl text-xs font-semibold whitespace-nowrap flex-shrink-0 transition-all ${
             activeSubTab === "whatsapp"
-              ? "bg-amber-500 text-neutral-950 shadow-md"
+              ? "bg-amber-500 text-neutral-950 shadow-md font-bold"
               : "bg-neutral-900 text-neutral-300 hover:text-white"
           }`}
         >
@@ -965,14 +965,14 @@ export const AdminCRMView: React.FC<AdminCRMViewProps> = ({ seminarStatus }) => 
 
         <button
           onClick={() => setActiveSubTab("backup")}
-          className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold ${
+          className={`flex items-center gap-1.5 px-3 sm:px-3.5 py-1.5 sm:py-2 rounded-xl text-xs font-semibold whitespace-nowrap flex-shrink-0 transition-all ${
             activeSubTab === "backup"
-              ? "bg-amber-500 text-neutral-950 shadow-md"
+              ? "bg-amber-500 text-neutral-950 shadow-md font-bold"
               : "bg-neutral-900 text-neutral-300 hover:text-white"
           }`}
         >
           <Database className="w-3.5 h-3.5" />
-          <span>Data Export & Cloud Backup</span>
+          <span>Backup & Export</span>
         </button>
       </div>
 

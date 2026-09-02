@@ -383,36 +383,36 @@ export const QuizArenaView: React.FC<QuizArenaViewProps> = ({
   const isTimeCritical = remainingSeconds <= 10;
 
   return (
-    <div className="max-w-3xl mx-auto px-4 sm:px-6 py-6">
+    <div className="max-w-3xl mx-auto px-3 sm:px-6 py-4 sm:py-6">
       {/* Top Floating Timer Bar */}
-      <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-4 mb-6 flex items-center justify-between shadow-xl">
+      <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-3 sm:p-4 mb-4 sm:mb-6 flex items-center justify-between shadow-xl">
         <div className="flex items-center gap-2">
-          <span className="text-xs font-bold text-neutral-300">
+          <span className="text-xs sm:text-sm font-bold text-neutral-300">
             प्रश्न {currentQIndex + 1} / {attemptData.questions.length}
           </span>
         </div>
 
         {/* 120s Timer Display */}
-        <div className={`flex items-center gap-2 px-4 py-1.5 rounded-xl border font-mono font-black text-lg sm:text-xl transition-all ${
+        <div className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-1.5 rounded-xl border font-mono font-black text-base sm:text-xl transition-all ${
           isTimeCritical
             ? "bg-red-500/30 border-red-500 text-red-400 animate-bounce"
             : isTimeUrgent
             ? "bg-amber-500/20 border-amber-500 text-amber-300 animate-pulse"
             : "bg-neutral-950 border-neutral-700 text-amber-400"
         }`}>
-          <Clock className="w-5 h-5" />
+          <Clock className="w-4 h-4 sm:w-5 sm:h-5" />
           <span>{formatTime(remainingSeconds)}</span>
         </div>
       </div>
 
       {/* Main Question Card */}
-      <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-6 sm:p-8 shadow-2xl mb-6">
-        <h3 className="text-lg sm:text-xl font-bold text-white mb-6 leading-snug">
+      <div className="bg-neutral-900 border border-neutral-800 rounded-2xl sm:rounded-3xl p-4 sm:p-8 shadow-2xl mb-4 sm:mb-6">
+        <h3 className="text-base sm:text-xl font-bold text-white mb-4 sm:mb-6 leading-snug">
           {currentQ.question}
         </h3>
 
         {/* 4 Option Cards */}
-        <div className="space-y-3">
+        <div className="space-y-2.5 sm:space-y-3">
           {currentQ.options.map((optionText, optIdx) => {
             const isSelected = selectedAnswers[currentQ.id] === optIdx;
 
@@ -421,21 +421,21 @@ export const QuizArenaView: React.FC<QuizArenaViewProps> = ({
                 key={optIdx}
                 id={`btn-option-${currentQ.id}-${optIdx}`}
                 onClick={() => handleSelectOption(currentQ.id, optIdx)}
-                className={`w-full text-left p-4 rounded-2xl border transition-all flex items-center justify-between cursor-pointer ${
+                className={`w-full text-left p-3 sm:p-4 rounded-xl sm:rounded-2xl border transition-all flex items-center justify-between cursor-pointer ${
                   isSelected
                     ? "bg-amber-500/20 border-amber-500 text-white font-bold shadow-lg shadow-amber-500/10"
                     : "bg-neutral-950 border-neutral-800 text-neutral-300 hover:border-neutral-700 hover:bg-neutral-850"
                 }`}
               >
-                <div className="flex items-center gap-3">
-                  <span className={`w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold ${
+                <div className="flex items-center gap-2.5 sm:gap-3">
+                  <span className={`w-6 h-6 sm:w-7 sm:h-7 rounded-lg flex items-center justify-center text-xs font-bold flex-shrink-0 ${
                     isSelected ? "bg-amber-500 text-neutral-950" : "bg-neutral-800 text-neutral-400"
                   }`}>
                     {String.fromCharCode(65 + optIdx)}
                   </span>
-                  <span className="text-sm sm:text-base">{optionText}</span>
+                  <span className="text-xs sm:text-base leading-snug">{optionText}</span>
                 </div>
-                {isSelected && <CheckCircle2 className="w-5 h-5 text-amber-400" />}
+                {isSelected && <CheckCircle2 className="w-4 h-4 sm:w-5 sm:h-5 text-amber-400 flex-shrink-0 ml-2" />}
               </button>
             );
           })}
@@ -443,37 +443,37 @@ export const QuizArenaView: React.FC<QuizArenaViewProps> = ({
       </div>
 
       {/* Bottom Navigation & Submit Bar */}
-      <div className="flex items-center justify-between gap-4">
+      <div className="flex items-center justify-between gap-2 sm:gap-4">
         <button
           onClick={() => setCurrentQIndex(prev => Math.max(0, prev - 1))}
           disabled={currentQIndex === 0}
-          className="bg-neutral-900 border border-neutral-800 hover:bg-neutral-800 text-neutral-300 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-semibold flex items-center gap-1.5 disabled:opacity-30 cursor-pointer"
+          className="bg-neutral-900 border border-neutral-800 hover:bg-neutral-800 text-neutral-300 px-3 sm:px-4 py-2.5 rounded-xl text-xs sm:text-sm font-semibold flex items-center gap-1 sm:gap-1.5 disabled:opacity-30 cursor-pointer"
         >
-          <ArrowLeft className="w-4 h-4" />
-          <span>पिछला (Previous)</span>
+          <ArrowLeft className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+          <span>पिछला</span>
         </button>
 
         {currentQIndex < attemptData.questions.length - 1 ? (
           <button
             onClick={() => setCurrentQIndex(prev => Math.min(attemptData.questions.length - 1, prev + 1))}
-            className="bg-neutral-800 hover:bg-neutral-700 text-white px-5 py-2.5 rounded-xl text-xs sm:text-sm font-semibold flex items-center gap-1.5 cursor-pointer"
+            className="bg-neutral-800 hover:bg-neutral-700 text-white px-4 sm:px-5 py-2.5 rounded-xl text-xs sm:text-sm font-semibold flex items-center gap-1 sm:gap-1.5 cursor-pointer"
           >
-            <span>अगला (Next)</span>
-            <ArrowRight className="w-4 h-4" />
+            <span>अगला</span>
+            <ArrowRight className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
           </button>
         ) : (
           <button
             id="btn-submit-final-quiz"
             onClick={handleManualSubmit}
             disabled={isSubmitting}
-            className="bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-white font-extrabold px-6 py-3 rounded-xl text-sm flex items-center gap-2 shadow-lg shadow-emerald-500/20 disabled:opacity-50 cursor-pointer"
+            className="bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-white font-extrabold px-4 sm:px-6 py-2.5 sm:py-3 rounded-xl text-xs sm:text-sm flex items-center gap-1.5 sm:gap-2 shadow-lg shadow-emerald-500/20 disabled:opacity-50 cursor-pointer"
           >
             {isSubmitting ? (
-              <span>मूल्यांकन हो रहा है...</span>
+              <span>सबमिट हो रहा है...</span>
             ) : (
               <>
-                <CheckCircle2 className="w-5 h-5" />
-                <span>उत्तर सबमिट करें (Finish Quiz)</span>
+                <CheckCircle2 className="w-4 h-4 sm:w-5 sm:h-5" />
+                <span>सबमिट करें</span>
               </>
             )}
           </button>

@@ -216,96 +216,96 @@ export const RegistrationView: React.FC<RegistrationViewProps> = ({
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+    <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-8 space-y-6 sm:space-y-8">
       {/* Hero & Countdown Banner */}
-      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-neutral-900 via-neutral-950 to-neutral-900 border border-neutral-800 shadow-2xl p-6 sm:p-10">
-        <div className="absolute top-0 right-0 -mr-20 -mt-20 w-80 h-80 rounded-full bg-amber-500/10 blur-3xl pointer-events-none" />
-        <div className="absolute bottom-0 left-0 -ml-20 -mb-20 w-80 h-80 rounded-full bg-sky-500/10 blur-3xl pointer-events-none" />
+      <div className="relative overflow-hidden rounded-2xl sm:rounded-3xl bg-gradient-to-br from-neutral-900 via-neutral-950 to-neutral-900 border border-neutral-800 shadow-2xl p-3.5 sm:p-8 lg:p-10">
+        <div className="absolute top-0 right-0 w-48 sm:w-80 h-48 sm:h-80 rounded-full bg-amber-500/10 blur-3xl pointer-events-none" />
+        <div className="absolute bottom-0 left-0 w-48 sm:w-80 h-48 sm:h-80 rounded-full bg-sky-500/10 blur-3xl pointer-events-none" />
 
-        <div className="relative z-10 grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
-          <div className="lg:col-span-7 space-y-4">
-            <div className="flex flex-wrap items-center gap-2">
-              <div className="inline-flex items-center gap-2 bg-amber-500/10 border border-amber-500/30 px-3 py-1.5 rounded-full text-amber-400 text-xs font-semibold">
-                <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-                <span>Official BMB Educom Weekly AI Seminar</span>
+        <div className="relative z-10 grid grid-cols-1 lg:grid-cols-12 gap-5 sm:gap-8 items-center">
+          <div className="lg:col-span-7 space-y-3 sm:space-y-4">
+            <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+              <div className="inline-flex items-center gap-1 bg-amber-500/10 border border-amber-500/30 px-2 py-0.5 sm:px-3 sm:py-1.5 rounded-full text-amber-400 text-[10px] sm:text-xs font-semibold">
+                <Sparkles className="w-3 h-3 text-amber-400" />
+                <span>Official BMB Educom AI Seminar</span>
               </div>
               <a
                 id="btn-hero-download-brochure"
                 href={OFFICIAL_BROCHURE_URL}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/40 px-3.5 py-1.5 rounded-full text-amber-300 hover:text-amber-200 text-xs font-semibold transition-colors cursor-pointer"
+                className="inline-flex items-center gap-1 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/40 px-2.5 py-0.5 sm:px-3.5 sm:py-1.5 rounded-full text-amber-300 hover:text-amber-200 text-[10px] sm:text-xs font-semibold transition-colors cursor-pointer"
               >
-                <Download className="w-3.5 h-3.5 text-amber-400" />
-                <span>ऑफिशियल PDF ब्रोशर डाउनलोड करें</span>
-                <ExternalLink className="w-3 h-3 opacity-70" />
+                <Download className="w-3 h-3 text-amber-400" />
+                <span>PDF ब्रोशर डाउनलोड</span>
+                <ExternalLink className="w-2.5 h-2.5 opacity-70" />
               </a>
             </div>
 
-            <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight text-white leading-tight">
-              FROM ZERO TO <br />
+            <h1 className="text-xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight text-white leading-tight break-words">
+              FROM ZERO TO <br className="hidden sm:inline" />
               <span className="bg-gradient-to-r from-amber-400 via-amber-300 to-amber-500 bg-clip-text text-transparent">
                 AI EXPERT SEMINAR
               </span>
             </h1>
 
-            <p className="text-sm text-neutral-300">
+            <p className="text-xs sm:text-sm text-neutral-300 leading-relaxed">
               Professional Artificial Intelligence Training Program • Learn • Build • Innovate • Get Hired
             </p>
 
-            <div className="flex flex-wrap items-center gap-3 pt-2 text-xs sm:text-sm text-neutral-300">
-              <div className="flex items-center gap-2 bg-neutral-900/90 border border-neutral-800 px-3 py-2 rounded-xl">
-                <Calendar className="w-4 h-4 text-amber-400" />
+            <div className="flex flex-wrap items-center gap-1.5 sm:gap-3 pt-0.5 text-xs text-neutral-300">
+              <div className="flex items-center gap-1.5 bg-neutral-900/90 border border-neutral-800 px-2.5 py-1.5 rounded-xl text-xs sm:text-sm">
+                <Calendar className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-400 flex-shrink-0" />
                 <span className="font-semibold text-white">
                   {seminarStatus?.formattedDateHi || "आगामी शुक्रवार"}
                 </span>
               </div>
-              <div className="flex items-center gap-2 bg-neutral-900/90 border border-neutral-800 px-3 py-2 rounded-xl">
-                <Clock className="w-4 h-4 text-amber-400" />
+              <div className="flex items-center gap-1.5 bg-neutral-900/90 border border-neutral-800 px-2.5 py-1.5 rounded-xl text-xs sm:text-sm">
+                <Clock className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-400 flex-shrink-0" />
                 <span className="text-white">{seminarStatus?.seminarTime || "11:00 AM – 4:00 PM IST"}</span>
               </div>
-              <div className="flex items-center gap-2 bg-neutral-900/90 border border-neutral-800 px-3 py-2 rounded-xl">
-                <MapPin className="w-4 h-4 text-emerald-400" />
-                <span className="text-white">{seminarStatus?.venueLocation || "BMB Educom टेक हब (जयपुर / ऑनलाइन एक्सेस)"}</span>
+              <div className="flex items-center gap-1.5 bg-neutral-900/90 border border-neutral-800 px-2.5 py-1.5 rounded-xl text-xs sm:text-sm">
+                <MapPin className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-400 flex-shrink-0" />
+                <span className="text-white truncate max-w-[150px] sm:max-w-none">{seminarStatus?.venueLocation || "BMB Educom टेक हब"}</span>
               </div>
             </div>
           </div>
 
           {/* Countdown Clock Widget */}
-          <div className="lg:col-span-5 bg-neutral-900/80 border border-amber-500/20 rounded-2xl p-6 backdrop-blur-md">
-            <h3 className="text-center text-xs font-bold uppercase tracking-widest text-amber-400 mb-4 flex items-center justify-center gap-2">
+          <div className="lg:col-span-5 bg-neutral-900/80 border border-amber-500/20 rounded-2xl p-4 sm:p-6 backdrop-blur-md">
+            <h3 className="text-center text-xs font-bold uppercase tracking-widest text-amber-400 mb-3 sm:mb-4 flex items-center justify-center gap-2">
               <Zap className="w-4 h-4" />
               आगामी सेमिनार काउंटडाउन
             </h3>
-            <div className="grid grid-cols-4 gap-2 text-center">
-              <div className="bg-neutral-950/80 border border-neutral-800 rounded-xl p-3">
-                <span className="block text-2xl sm:text-3xl font-black text-white font-mono">
+            <div className="grid grid-cols-4 gap-1.5 sm:gap-2 text-center">
+              <div className="bg-neutral-950/80 border border-neutral-800 rounded-xl p-2 sm:p-3">
+                <span className="block text-xl sm:text-3xl font-black text-white font-mono">
                   {String(countdown.d).padStart(2, "0")}
                 </span>
-                <span className="text-[10px] text-neutral-400 font-medium">दिन (Days)</span>
+                <span className="text-[9px] sm:text-[10px] text-neutral-400 font-medium">दिन (Days)</span>
               </div>
-              <div className="bg-neutral-950/80 border border-neutral-800 rounded-xl p-3">
-                <span className="block text-2xl sm:text-3xl font-black text-amber-400 font-mono">
+              <div className="bg-neutral-950/80 border border-neutral-800 rounded-xl p-2 sm:p-3">
+                <span className="block text-xl sm:text-3xl font-black text-amber-400 font-mono">
                   {String(countdown.h).padStart(2, "0")}
                 </span>
-                <span className="text-[10px] text-neutral-400 font-medium">घंटे (Hrs)</span>
+                <span className="text-[9px] sm:text-[10px] text-neutral-400 font-medium">घंटे (Hrs)</span>
               </div>
-              <div className="bg-neutral-950/80 border border-neutral-800 rounded-xl p-3">
-                <span className="block text-2xl sm:text-3xl font-black text-amber-400 font-mono">
+              <div className="bg-neutral-950/80 border border-neutral-800 rounded-xl p-2 sm:p-3">
+                <span className="block text-xl sm:text-3xl font-black text-amber-400 font-mono">
                   {String(countdown.m).padStart(2, "0")}
                 </span>
-                <span className="text-[10px] text-neutral-400 font-medium">मिनट (Mins)</span>
+                <span className="text-[9px] sm:text-[10px] text-neutral-400 font-medium">मिनट (Mins)</span>
               </div>
-              <div className="bg-neutral-950/80 border border-neutral-800 rounded-xl p-3">
-                <span className="block text-2xl sm:text-3xl font-black text-red-400 font-mono">
+              <div className="bg-neutral-950/80 border border-neutral-800 rounded-xl p-2 sm:p-3">
+                <span className="block text-xl sm:text-3xl font-black text-red-400 font-mono">
                   {String(countdown.s).padStart(2, "0")}
                 </span>
-                <span className="text-[10px] text-neutral-400 font-medium">सेकंड (Secs)</span>
+                <span className="text-[9px] sm:text-[10px] text-neutral-400 font-medium">सेकंड (Secs)</span>
               </div>
             </div>
 
             {participant ? (
-              <div className="mt-6 p-4 rounded-xl bg-amber-500/10 border border-amber-500/30 text-center">
+              <div className="mt-4 sm:mt-6 p-3 sm:p-4 rounded-xl bg-amber-500/10 border border-amber-500/30 text-center">
                 <p className="text-xs text-amber-200 mb-2">
                   स्वागत है <strong>{participant.name}</strong>! आपका पंजीकरण सक्रिय है।
                 </p>
@@ -319,7 +319,7 @@ export const RegistrationView: React.FC<RegistrationViewProps> = ({
                 </button>
               </div>
             ) : (
-              <p className="text-center text-[11px] text-neutral-400 mt-4">
+              <p className="text-center text-[10px] sm:text-[11px] text-neutral-400 mt-3 sm:mt-4">
                 नीचे फॉर्म भरकर तुरंत अपनी सीट नंबर, व्हाट्सएप कन्फर्मेशन और 6-पेज का AI सिलेबस PDF प्राप्त करें।
               </p>
             )}
