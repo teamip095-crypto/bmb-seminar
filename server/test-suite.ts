@@ -37,6 +37,16 @@ export class ProductionTestSuiteRunner {
 
   public static async runAllTests(): Promise<FullTestSuiteSummary> {
     const startTime = Date.now();
+
+    // Disable Gemini API calls during test suite execution.
+    // Tests run on Vercel serverless with 60s timeout — even one Gemini
+    // API call (with retries on quota failure) can take 30+ seconds.
+    // The fallback question bank gives identical coverage for testing.
+    const savedGeminiKey = process.env.GEMINI_API_KEY;
+    delete process.env.GEMINI_API_KEY;
+    // Reset the singleton client so it re-evaluates the env var
+    (QuizGenerationService as any).aiClient = null;
+
     await db.initialize();
     const snapshotBeforeTests = db.getDataState();
     const results: TestResultItem[] = [];
@@ -1541,6 +1551,11 @@ export class ProductionTestSuiteRunner {
       };
     } finally {
       db.restoreDataState(snapshotBeforeTests);
+      // Restore the Gemini API key so the rest of the runtime can still use it
+      if (savedGeminiKey !== undefined) {
+        process.env.GEMINI_API_KEY = savedGeminiKey;
+        (QuizGenerationService as any).aiClient = null;
+      }
     }
   }
 }
