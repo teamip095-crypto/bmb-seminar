@@ -1,9 +1,8 @@
-// Vercel serverless catch-all handler.
-// All requests under /api/* are routed here by Vercel's file-system routing.
-// We re-export the Express app from ../server.ts as the function handler.
-//
-// On Vercel, the VERCEL env var is set, so server.ts skips app.listen() and
-// exposes a default async handler that forwards to the Express app.
-import handler from "../server";
+// Test 1: Bare minimum — does the function even respond?
+import type { IncomingMessage, ServerResponse } from "http";
 
-export default handler;
+export default async function handler(req: IncomingMessage, res: ServerResponse): Promise<void> {
+  res.statusCode = 200;
+  res.setHeader("Content-Type", "application/json");
+  res.end(JSON.stringify({ ok: true, msg: "bare-min works" }));
+}
