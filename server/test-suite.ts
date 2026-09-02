@@ -669,48 +669,48 @@ export class ProductionTestSuiteRunner {
 
     // QZ-005: Generate 4 Questions for Attempt
     // Skip Gemini call if we're already near the time budget — saves 5-15s
+    let generated: any = null;
     if (Date.now() - startTime < ProductionTestSuiteRunner.TIME_BUDGET_MS - 20000) {
-    const generated = await QuizGenerationService.generateQuizForAttempt({
-      attemptId: "test-att-001",
-      participantId: createdReg.id,
-      participantName: createdReg.name,
-      seedString: "seed-test-participant-1"
-    });
-    addTest(
-      "QZ-005",
-      "Quiz Engine",
-      "Generate exactly 4 questions for an attempt",
-      "Returns exactly 4 questions",
-      `Count: ${generated.questions.length}`,
-      generated.questions.length === 4,
-      `Generated 4 questions from ${generated.questions[0].source}`
-    );
+      generated = await QuizGenerationService.generateQuizForAttempt({
+        attemptId: "test-att-001",
+        participantId: createdReg.id,
+        participantName: createdReg.name,
+        seedString: "seed-test-participant-1"
+      });
+      addTest(
+        "QZ-005",
+        "Quiz Engine",
+        "Generate exactly 4 questions for an attempt",
+        "Returns exactly 4 questions",
+        `Count: ${generated.questions.length}`,
+        generated.questions.length === 4,
+        `Generated 4 questions from ${generated.questions[0].source}`
+      );
     } else {
       addTest("QZ-005", "Quiz Engine", "Generate exactly 4 questions for an attempt", "Returns exactly 4 questions", "skipped (time budget)", true, "Skipped to avoid Gemini API timeout");
     }
 
     // QZ-006: Participant Uniqueness (Different Seeds produce different selections/permutations)
-    if (Date.now() - startTime < ProductionTestSuiteRunner.TIME_BUDGET_MS - 30000) {
-    const gen2 = await QuizGenerationService.generateQuizForAttempt({
-      attemptId: "test-att-002",
-      participantId: "part-2",
-      participantName: "Second User",
-      seedString: "seed-test-participant-2-different"
-    });
-    const isDifferent = generated && gen2
-      ? (generated.questions[0].questionId !== gen2.questions[0].questionId ||
-         generated.questions[1].questionId !== gen2.questions[1].questionId ||
-         generated.questions[0].correctOption !== gen2.questions[0].correctOption)
-      : false;
-    addTest(
-      "QZ-006",
-      "Quiz Engine",
-      "Verify different participant seeds generate customized question combinations/permutations",
-      "Different questions / shuffled option mappings",
-      isDifferent ? "Unique sets generated" : "Skipped or identical",
-      isDifferent,
-      "Participant-specific randomization active"
-    );
+    if (generated && Date.now() - startTime < ProductionTestSuiteRunner.TIME_BUDGET_MS - 30000) {
+      const gen2 = await QuizGenerationService.generateQuizForAttempt({
+        attemptId: "test-att-002",
+        participantId: "part-2",
+        participantName: "Second User",
+        seedString: "seed-test-participant-2-different"
+      });
+      const isDifferent =
+        generated.questions[0].questionId !== gen2.questions[0].questionId ||
+        generated.questions[1].questionId !== gen2.questions[1].questionId ||
+        generated.questions[0].correctOption !== gen2.questions[0].correctOption;
+      addTest(
+        "QZ-006",
+        "Quiz Engine",
+        "Verify different participant seeds generate customized question combinations/permutations",
+        "Different questions / shuffled option mappings",
+        isDifferent ? "Unique sets generated" : "Identical",
+        isDifferent,
+        "Participant-specific randomization active"
+      );
     } else {
       addTest("QZ-006", "Quiz Engine", "Verify different participant seeds generate customized question combinations/permutations", "Different questions / shuffled option mappings", "skipped (time budget)", true, "Skipped to avoid Gemini API timeout");
     }
