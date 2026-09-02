@@ -1,11 +1,53 @@
-import express from "express";
+// Test importing server.ts with try/catch wrapper for diagnostics
 import type { IncomingMessage, ServerResponse } from "http";
 
-const app = express();
-app.get("/api/health", (req, res) => {
-  res.json({ ok: true, msg: "express works in vercel", time: new Date().toISOString() });
-});
+let serverHandler: ((req: IncomingMessage, res: ServerResponse) => void) | null = null;
+let initError: any = null;
+
+(async () => {
+  try {
+    const mod = await import("../server");
+    serverHandler = mod.default;
+    console.log("[bmb-seminar] server.ts loaded successfully");
+  } catch (err) {
+    initError = err;
+    console.error("[bmb-seminar] Failed to import server.ts:", err);
+  }
+})();
 
 export default async function handler(req: IncomingMessage, res: ServerResponse): Promise<void> {
-  (app as any)(req, res);
+  if (initError) {
+    res.statusCode = 500;
+    res.setHeader("Content-Type", "application/json");
+    res.end(JSON.stringify({
+      error: "Server module failed to load",
+      message: initError?.message,
+      stack: initError?.stack?.split("\n").slice(0, 10)
+    }));
+    return;
+  }
+  if (!serverHandler) {
+    // Module is still loading — wait briefly
+    for (let i = 0; i < 50; i++) {
+      await new Promise(r => setTimeout(r, 100));
+      if (serverHandler || initError) break;
+    }
+  }
+  if (serverHandler) {
+    try {
+      serverHandler(req, res);
+    } catch (err: any) {
+      res.statusCode = 500;
+      res.setHeader("Content-Type", "application/json");
+      res.end(JSON.stringify({
+        error: "Handler threw",
+        message: err?.message,
+        stack: err?.stack?.split("\n").slice(0, 8)
+      }));
+    }
+  } else {
+    res.statusCode = 500;
+    res.setHeader("Content-Type", "application/json");
+    res.end(JSON.stringify({ error: "Server module never loaded" }));
+  }
 }
