@@ -5,12 +5,13 @@ import { WinnerTicker } from "./components/WinnerTicker";
 import { RegistrationView } from "./components/RegistrationView";
 import { LearningPlayerView } from "./components/LearningPlayerView";
 import { QuizArenaView } from "./components/QuizArenaView";
+import { ScholarshipQuizView } from "./components/ScholarshipQuizView";
 import { LeaderboardView } from "./components/LeaderboardView";
 import { AdminCRMView } from "./components/AdminCRMView";
 import { Sparkles, Shield, Heart, GraduationCap } from "lucide-react";
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<"registration" | "learning" | "quiz" | "leaderboard" | "admin">("registration");
+  const [activeTab, setActiveTab] = useState<"registration" | "learning" | "quiz" | "scholarship" | "leaderboard" | "admin">("registration");
   const [seminarStatus, setSeminarStatus] = useState<FridaySeminarStatusResponse | null>(null);
   const [participant, setParticipant] = useState<ParticipantProfile | null>(null);
   const [participantToken, setParticipantToken] = useState<string | null>(() => localStorage.getItem("bmb_participant_token"));
@@ -105,6 +106,16 @@ export default function App() {
 
         {activeTab === "quiz" && (
           <QuizArenaView
+            participant={participant}
+            participantToken={participantToken}
+            onGoToRegistration={() => setActiveTab("registration")}
+            onGoToLeaderboard={() => setActiveTab("leaderboard")}
+            onProceedToScholarship={() => setActiveTab("scholarship")}
+          />
+        )}
+
+        {activeTab === "scholarship" && (
+          <ScholarshipQuizView
             participant={participant}
             participantToken={participantToken}
             onGoToRegistration={() => setActiveTab("registration")}

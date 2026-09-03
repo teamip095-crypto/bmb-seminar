@@ -84,11 +84,52 @@ export async function ensureSchema(): Promise<void> {
     );
     CREATE INDEX IF NOT EXISTS idx_admin_users_email_lower ON admin_users (LOWER(email));
     CREATE INDEX IF NOT EXISTS idx_admin_users_whatsapp ON admin_users (whatsapp_number);
+
+    -- Scholarship Quiz tables (002_scholarship_quiz.sql)
+    CREATE TABLE IF NOT EXISTS scholarship_attempts (
+      id TEXT PRIMARY KEY,
+      participant_id TEXT NOT NULL,
+      participant_name TEXT,
+      participant_phone TEXT,
+      participant_city TEXT,
+      started_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      expires_at TIMESTAMPTZ NOT NULL,
+      submitted_at TIMESTAMPTZ,
+      duration_seconds INTEGER,
+      score INTEGER NOT NULL DEFAULT 0,
+      total_questions INTEGER NOT NULL DEFAULT 20,
+      status TEXT NOT NULL DEFAULT 'in_progress' CHECK (status IN ('in_progress','submitted','expired','timeout_auto_submitted')),
+      answers_json JSONB,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+    CREATE INDEX IF NOT EXISTS idx_scholarship_attempts_participant ON scholarship_attempts (participant_id);
+    CREATE INDEX IF NOT EXISTS idx_scholarship_attempts_score ON scholarship_attempts (score DESC, duration_seconds ASC);
+
+    CREATE TABLE IF NOT EXISTS scholarship_winners (
+      id TEXT PRIMARY KEY,
+      attempt_id TEXT NOT NULL REFERENCES scholarship_attempts(id) ON DELETE CASCADE,
+      participant_id TEXT NOT NULL,
+      participant_name TEXT,
+      participant_phone TEXT,
+      participant_city TEXT,
+      rank INTEGER NOT NULL,
+      prize_type TEXT NOT NULL CHECK (prize_type IN ('cash','gift')),
+      prize_amount INTEGER NOT NULL DEFAULT 0,
+      prize_label TEXT NOT NULL,
+      score INTEGER NOT NULL,
+      duration_seconds INTEGER,
+      awarded_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      UNIQUE (attempt_id, rank)
+    );
+    CREATE INDEX IF NOT EXISTS idx_scholarship_winners_rank ON scholarship_winners (rank ASC);
+    CREATE INDEX IF NOT EXISTS idx_scholarship_winners_awarded ON scholarship_winners (awarded_at DESC);
   `);
   if (result === null) {
     console.warn("[supabase-client] ensureSchema failed — Postgres not available");
   } else {
-    console.log("[supabase-client] schema ensured");
+    console.log("[supabase-client] schema ensured (admin + scholarship)");
   }
   migrationChecked = true;
 }

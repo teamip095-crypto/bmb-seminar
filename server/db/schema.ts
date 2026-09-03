@@ -289,3 +289,99 @@ export const AdminAccountUpdateSchema = z.object({
   new_password: z.string().min(6).optional(),
 });
 
+// ==========================================
+// SCHOLARSHIP QUIZ SCHEMAS
+// 20-question AI scholarship quiz, 10-min timer
+// Prizes: Rank 1 = ₹1000, Rank 2 = ₹500, Rank 3 = ₹200, Ranks 4-10 = attractive gift
+// ==========================================
+
+export interface ScholarshipAttempt {
+  id: string;
+  participant_id: string;
+  participant_name?: string;
+  participant_phone?: string;
+  participant_city?: string;
+  started_at: string;       // ISO
+  expires_at: string;       // ISO — 10 minutes after started_at
+  submitted_at?: string;
+  duration_seconds?: number;
+  score: number;            // 0 to 20
+  total_questions: number;  // 20
+  status: "in_progress" | "submitted" | "expired" | "timeout_auto_submitted";
+  answers: { questionId: string; selectedOption: number; isCorrect: boolean }[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ScholarshipWinner {
+  id: string;
+  attempt_id: string;
+  participant_id: string;
+  participant_name: string;
+  participant_phone?: string;
+  participant_city?: string;
+  rank: number;             // 1, 2, 3, or 4-10
+  prize_type: "cash" | "gift";
+  prize_amount: number;     // 1000, 500, 200, or 0 for gift
+  prize_label: string;      // "₹1000 Cash Prize" or "Attractive Gift"
+  score: number;
+  duration_seconds?: number;
+  awarded_at: string;
+  created_at: string;
+}
+
+export interface ScholarshipQuestionClient {
+  id: string;
+  question: string;
+  options: string[];
+  questionNumber: number;
+  totalQuestions: number;
+}
+
+export interface ScholarshipAttemptStartResponse {
+  attemptId: string;
+  questions: ScholarshipQuestionClient[];
+  startedAt: string;
+  expiresAt: string;
+  remainingSeconds: number;
+  totalQuestions: number;
+}
+
+export interface ScholarshipSubmissionResponse {
+  attemptId: string;
+  score: number;
+  totalQuestions: number;
+  durationSeconds: number;
+  resultStatus: "passed" | "participated";
+  rank?: number;            // 1-based rank (only top 10 are recorded)
+  prizeWon?: {
+    type: "cash" | "gift";
+    amount: number;
+    label: string;
+  };
+  review: {
+    id: string;
+    question: string;
+    options: string[];
+    correctOption: number;
+    selectedOption: number;
+    isCorrect: boolean;
+    explanation?: string;
+  }[];
+}
+
+export const ScholarshipStartSchema = z.object({
+  participant_token: z.string().min(10, "Valid participant token required")
+});
+
+export const ScholarshipSubmissionSchema = z.object({
+  attempt_id: z.string().min(1, "Attempt ID required"),
+  participant_token: z.string().min(10, "Valid participant token required"),
+  answers: z.array(
+    z.object({
+      question_id: z.string().min(1),
+      selected_option: z.number().int().min(-1).max(3) // -1 = unanswered
+    })
+  ).min(1, "At least one answer required"),
+  is_auto_submit: z.boolean().optional().default(false)
+});

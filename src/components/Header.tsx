@@ -3,8 +3,8 @@ import { FridaySeminarStatusResponse, ParticipantProfile } from "../types";
 import { Sparkles, Calendar, Clock, Trophy, BookOpen, UserCheck, Shield, Award } from "lucide-react";
 
 interface HeaderProps {
-  activeTab: "registration" | "learning" | "quiz" | "leaderboard" | "admin";
-  onTabChange: (tab: "registration" | "learning" | "quiz" | "leaderboard" | "admin") => void;
+  activeTab: "registration" | "learning" | "quiz" | "scholarship" | "leaderboard" | "admin";
+  onTabChange: (tab: "registration" | "learning" | "quiz" | "scholarship" | "leaderboard" | "admin") => void;
   seminarStatus: FridaySeminarStatusResponse | null;
   participant: ParticipantProfile | null;
 }

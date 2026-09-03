@@ -11,6 +11,7 @@ import { GoogleDriveService } from "./server/services/google-drive-service";
 import { AntiCheatService } from "./server/services/anti-cheat";
 import { ServerPdfService } from "./server/services/pdf-service";
 import { ProductionTestSuiteRunner } from "./server/test-suite";
+import { ScholarshipService } from "./server/services/scholarship-service";
 import {
   RegistrationInputSchema,
   QuizAnswerSubmissionSchema,
@@ -19,7 +20,9 @@ import {
   AdminResetPasswordWithOTPSchema,
   AdmissionLeadUpdateSchema,
   SeminarSettingsUpdateSchema,
-  AdminAccountUpdateSchema
+  AdminAccountUpdateSchema,
+  ScholarshipStartSchema,
+  ScholarshipSubmissionSchema
 } from "./server/db/schema";
 import type { IncomingMessage, ServerResponse } from "http";
 
@@ -595,6 +598,127 @@ async function startServer(): Promise<void> {
   });
 
   // ==========================================
+  // SCHOLARSHIP QUIZ API ROUTES (₹1000/₹500/₹200 + 7 attractive gift prizes)
+  // 20 AI questions, 10-min timer, separate leaderboard, persisted in Supabase
+  // ==========================================
+
+  // 6.1 Scholarship Quiz Status (does the participant already have a submission?)
+  app.get("/api/scholarship-quiz/status", async (req: Request, res: Response) => {
+    try {
+      const participantToken = req.query.participant_token as string;
+      if (!participantToken || participantToken.length < 10) {
+        return res.json({ submitted: false });
+      }
+
+      // Resolve participant from token hash
+      const tokenHash = AntiCheatService.hashToken(participantToken);
+      const participant = db.getRegistrationByTokenHash(tokenHash);
+      if (!participant) {
+        return res.status(404).json({ error: "Participant not found" });
+      }
+
+      const result = await ScholarshipService.hasParticipantSubmitted(participant.id);
+      res.json(result);
+    } catch (err: any) {
+      res.status(500).json({ error: "Failed to fetch scholarship status", details: err?.message });
+    }
+  });
+
+  // 6.2 Start Scholarship Quiz Attempt (requires participant_token)
+  app.post("/api/scholarship-quiz/start", async (req: Request, res: Response) => {
+    try {
+      const parseResult = ScholarshipStartSchema.safeParse(req.body);
+      if (!parseResult.success) {
+        return res.status(400).json({ error: "Invalid input", details: parseResult.error.flatten() });
+      }
+
+      const { participant_token } = parseResult.data;
+      const tokenHash = AntiCheatService.hashToken(participant_token);
+      const participant = db.getRegistrationByTokenHash(tokenHash);
+
+      if (!participant) {
+        return res.status(404).json({ error: "प्रतिभागी पंजीकरण नहीं मिला। कृपया पहले सेमिनार रजिस्ट्रेशन करें।" });
+      }
+
+      // Check if already submitted
+      const existing = await ScholarshipService.hasParticipantSubmitted(participant.id);
+      if (existing.submitted) {
+        return res.status(409).json({
+          error: "आप स्कॉलरशिप क्विज पहले ही पूरा कर चुके हैं।",
+          alreadyCompleted: true,
+          score: existing.score
+        });
+      }
+
+      const result = await ScholarshipService.startAttempt({
+        participantId: participant.id,
+        participantName: participant.display_name,
+        participantPhone: participant.whatsapp_number,
+        participantCity: participant.city
+      });
+
+      res.json(result);
+    } catch (err: any) {
+      res.status(500).json({ error: "Failed to start scholarship quiz", details: err?.message });
+    }
+  });
+
+  // 6.3 Submit Scholarship Quiz Attempt
+  app.post("/api/scholarship-quiz/submit", async (req: Request, res: Response) => {
+    try {
+      const parseResult = ScholarshipSubmissionSchema.safeParse(req.body);
+      if (!parseResult.success) {
+        return res.status(400).json({ error: "Invalid submission", details: parseResult.error.flatten() });
+      }
+
+      const { attempt_id, participant_token, answers, is_auto_submit } = parseResult.data;
+      const tokenHash = AntiCheatService.hashToken(participant_token);
+      const participant = db.getRegistrationByTokenHash(tokenHash);
+
+      if (!participant) {
+        return res.status(404).json({ error: "Participant not found" });
+      }
+
+      const result = await ScholarshipService.submitAttempt({
+        attemptId: attempt_id,
+        participantId: participant.id,
+        answers,
+        isAutoSubmit: is_auto_submit
+      });
+
+      res.json(result);
+    } catch (err: any) {
+      const msg = err?.message || "";
+      if (msg === "ALREADY_SUBMITTED") {
+        return res.status(409).json({ error: "Attempt already submitted" });
+      }
+      res.status(500).json({ error: "Failed to submit scholarship quiz", details: msg });
+    }
+  });
+
+  // 6.4 Scholarship Quiz Leaderboard
+  app.get("/api/scholarship-quiz/leaderboard", async (req: Request, res: Response) => {
+    try {
+      const limit = parseInt(req.query.limit as string, 10) || 50;
+      const leaderboard = await ScholarshipService.getLeaderboard(Math.min(limit, 200));
+      res.json({ count: leaderboard.length, leaderboard });
+    } catch (err: any) {
+      res.status(500).json({ error: "Failed to fetch scholarship leaderboard", details: err?.message });
+    }
+  });
+
+  // 6.5 Scholarship Quiz Winners (top 10: ranks 1-3 cash, 4-10 attractive gift)
+  app.get("/api/scholarship-quiz/winners", async (req: Request, res: Response) => {
+    try {
+      const limit = parseInt(req.query.limit as string, 10) || 10;
+      const winners = await ScholarshipService.getWinners(Math.min(limit, 10));
+      res.json({ count: winners.length, winners });
+    } catch (err: any) {
+      res.status(500).json({ error: "Failed to fetch scholarship winners", details: err?.message });
+    }
+  });
+
+  // ==========================================
   // ADMIN AUTHENTICATION & CRM API ROUTES
   // ==========================================
 
@@ -1046,6 +1170,50 @@ async function startServer(): Promise<void> {
       res.json({ message: "All test and demo registration records cleared. Database is 100% fresh and clean for live use." });
     } catch (err: any) {
       res.status(500).json({ error: "Failed to reset database", details: err?.message });
+    }
+  });
+
+  // 14.2 Admin: View all scholarship attempts (for admin dashboard)
+  app.get("/api/admin/scholarship/attempts", authenticateAdmin, async (req: AuthRequest, res: Response) => {
+    try {
+      const leaderboard = await ScholarshipService.getLeaderboard(200);
+      res.json({ count: leaderboard.length, attempts: leaderboard });
+    } catch (err: any) {
+      res.status(500).json({ error: "Failed to fetch scholarship attempts", details: err?.message });
+    }
+  });
+
+  // 14.3 Admin: View all scholarship winners (rank 1-10)
+  app.get("/api/admin/scholarship/winners", authenticateAdmin, async (req: AuthRequest, res: Response) => {
+    try {
+      const winners = await ScholarshipService.getWinners(10);
+      res.json({ count: winners.length, winners });
+    } catch (err: any) {
+      res.status(500).json({ error: "Failed to fetch scholarship winners", details: err?.message });
+    }
+  });
+
+  // 14.4 Admin: Clear all scholarship data (for testing / reset between events)
+  app.post("/api/admin/scholarship/clear", authenticateAdmin, async (req: AuthRequest, res: Response) => {
+    try {
+      const { query: dbQuery } = await import("./server/db/supabase-client");
+      if (!dbQuery) {
+        return res.status(500).json({ error: "Postgres not configured" });
+      }
+      // Delete winners first (FK constraint), then attempts
+      await dbQuery("DELETE FROM scholarship_winners");
+      await dbQuery("DELETE FROM scholarship_attempts");
+      db.logAudit({
+        admin_id: req.adminUser?.id,
+        admin_name: req.adminUser?.name,
+        action: "CLEAR_SCHOLARSHIP_DATA",
+        entity: "scholarship",
+        entity_id: "all_attempts_winners",
+        metadata: { timestamp: new Date().toISOString() }
+      });
+      res.json({ message: "All scholarship attempts and winners cleared. Quiz ready for fresh event." });
+    } catch (err: any) {
+      res.status(500).json({ error: "Failed to clear scholarship data", details: err?.message });
     }
   });
 

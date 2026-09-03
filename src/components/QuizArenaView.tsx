@@ -12,7 +12,9 @@ import {
   Sparkles,
   Zap,
   RotateCcw,
-  ShieldAlert
+  ShieldAlert,
+  Gift,
+  IndianRupee
 } from "lucide-react";
 import confetti from "canvas-confetti";
 
@@ -21,13 +23,15 @@ interface QuizArenaViewProps {
   participantToken: string | null;
   onGoToRegistration: () => void;
   onGoToLeaderboard: () => void;
+  onProceedToScholarship?: () => void;
 }
 
 export const QuizArenaView: React.FC<QuizArenaViewProps> = ({
   participant,
   participantToken,
   onGoToRegistration,
-  onGoToLeaderboard
+  onGoToLeaderboard,
+  onProceedToScholarship
 }) => {
   const [attemptData, setAttemptData] = useState<QuizAttemptStartResponse | null>(null);
   const [currentQIndex, setCurrentQIndex] = useState(0);
@@ -243,6 +247,48 @@ export const QuizArenaView: React.FC<QuizArenaViewProps> = ({
               <span>लाइव शुक्रवार लीडरबोर्ड देखें</span>
             </button>
           </div>
+
+          {/* Scholarship Quiz Promotion */}
+          {onProceedToScholarship && (
+            <div className="bg-gradient-to-br from-purple-950/40 via-neutral-900 to-amber-950/40 border-2 border-purple-500/40 rounded-2xl p-5 sm:p-6 mb-6 text-left">
+              <div className="flex items-start gap-4">
+                <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-purple-500 to-amber-500 flex items-center justify-center flex-shrink-0 shadow-lg shadow-purple-500/30">
+                  <Gift className="w-7 h-7 text-white" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-base sm:text-lg font-bold text-white mb-1 flex items-center gap-2 flex-wrap">
+                    ₹1000 स्कॉलरशिप क्विज़ खेलें
+                    <span className="text-[10px] bg-purple-500/30 text-purple-200 px-2 py-0.5 rounded-full font-bold uppercase">New</span>
+                  </h3>
+                  <p className="text-xs text-neutral-300 mb-3">
+                    20 AI प्रश्न • 10 मिनट • 1st: ₹1000 • 2nd: ₹500 • 3rd: ₹200 • 7 आकर्षक उपहार
+                  </p>
+                  <div className="flex flex-wrap gap-2 text-[11px] font-bold">
+                    <span className="bg-yellow-950/40 border border-yellow-500/40 text-yellow-300 px-2.5 py-1 rounded-full flex items-center gap-1">
+                      🥇 <IndianRupee className="w-3 h-3" />1000
+                    </span>
+                    <span className="bg-gray-950/40 border border-gray-400/40 text-gray-300 px-2.5 py-1 rounded-full flex items-center gap-1">
+                      🥈 <IndianRupee className="w-3 h-3" />500
+                    </span>
+                    <span className="bg-orange-950/40 border border-orange-700/40 text-orange-300 px-2.5 py-1 rounded-full flex items-center gap-1">
+                      🥉 <IndianRupee className="w-3 h-3" />200
+                    </span>
+                    <span className="bg-purple-950/40 border border-purple-500/40 text-purple-300 px-2.5 py-1 rounded-full flex items-center gap-1">
+                      <Gift className="w-3 h-3" /> 7 उपहार
+                    </span>
+                  </div>
+                  <button
+                    onClick={onProceedToScholarship}
+                    className="mt-4 w-full sm:w-auto bg-gradient-to-r from-purple-500 to-amber-500 hover:from-purple-400 hover:to-amber-400 text-white font-extrabold py-3 px-5 rounded-xl inline-flex items-center justify-center gap-2 shadow-lg shadow-purple-500/30 text-sm cursor-pointer"
+                  >
+                    <Zap className="w-4 h-4" />
+                    <span>₹1000 स्कॉलरशिप क्विज़ शुरू करें</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Question-by-Question Review Breakdown */}
           {submissionResult.review && (

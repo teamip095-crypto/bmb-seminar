@@ -182,3 +182,79 @@ export interface QATestSuiteResponse {
   categoryBreakdown: Record<string, { total: number; passed: number; failed: number }>;
   results: TestResultItem[];
 }
+
+// ==========================================
+// SCHOLARSHIP QUIZ TYPES
+// ==========================================
+
+export interface ScholarshipQuestionClient {
+  id: string;
+  question: string;
+  options: string[];
+  questionNumber: number;
+  totalQuestions: number;
+}
+
+export interface ScholarshipAttemptStartResponse {
+  attemptId: string;
+  questions: ScholarshipQuestionClient[];
+  startedAt: string;
+  expiresAt: string;
+  remainingSeconds: number;
+  totalQuestions: number;
+}
+
+export interface ScholarshipSubmissionReviewItem {
+  id: string;
+  question: string;
+  options: string[];
+  correctOption: number;
+  selectedOption: number;
+  isCorrect: boolean;
+  explanation?: string;
+}
+
+export interface ScholarshipSubmissionResponse {
+  attemptId: string;
+  score: number;
+  totalQuestions: number;
+  durationSeconds: number;
+  resultStatus: "passed" | "participated";
+  rank?: number;
+  prizeWon?: {
+    type: "cash" | "gift";
+    amount: number;
+    label: string;
+  };
+  review: ScholarshipSubmissionReviewItem[];
+}
+
+export interface ScholarshipLeaderboardEntry {
+  id: string;
+  participant_id: string;
+  participant_name?: string;
+  participant_phone?: string;
+  participant_city?: string;
+  score: number;
+  total_questions: number;
+  duration_seconds?: number;
+  submitted_at?: string;
+  status: string;
+}
+
+export interface ScholarshipWinnerEntry {
+  id: string;
+  attempt_id: string;
+  participant_id: string;
+  participant_name: string;
+  participant_phone?: string;
+  participant_city?: string;
+  rank: number;
+  prize_type: "cash" | "gift";
+  prize_amount: number;
+  prize_label: string;
+  score: number;
+  duration_seconds?: number;
+  awarded_at: string;
+}
+
