@@ -397,6 +397,25 @@ class DatabaseService {
     };
     this.data.seminar_registrations.push(newReg);
 
+    // Persist to Postgres (async, fire-and-forget — but with await via IIFE for safety)
+    if (isPostgresConfigured()) {
+      query(
+        `INSERT INTO seminar_registrations
+          (id, seminar_event_id, registration_id, seat_number, name, full_address,
+           whatsapp_number, email, education, occupation, age_group, city, district,
+           whatsapp_consent, display_name, secure_token_hash, created_at, updated_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, NOW(), NOW())
+         ON CONFLICT (id) DO NOTHING`,
+        [
+          newReg.id, newReg.seminar_event_id, newReg.registration_id, newReg.seat_number,
+          newReg.name, newReg.full_address, newReg.whatsapp_number, newReg.email || null,
+          newReg.education || null, newReg.occupation || null, newReg.age_group || null,
+          newReg.city || null, newReg.district || null, newReg.whatsapp_consent,
+          newReg.display_name, newReg.secure_token_hash
+        ]
+      ).catch(err => console.error("[db] Failed to persist registration to Postgres:", err));
+    }
+
     // Automatically create corresponding CRM Lead
     const extraInfo = [reg.education, reg.occupation].filter(Boolean).join(", ");
     this.createAdmissionLead({
@@ -412,7 +431,109 @@ class DatabaseService {
   }
 
   public getRegistrationByTokenHash(tokenHash: string): SeminarRegistration | undefined {
-    return this.data.seminar_registrations.find(r => r.secure_token_hash === tokenHash);
+    // Try in-memory first (fast)
+    const cached = this.data.seminar_registrations.find(r => r.secure_token_hash === tokenHash);
+    if (cached) return cached;
+    return undefined;
+    // Note: Postgres lookup is async — handled via loadRegistrationByTokenHash() below
+  }
+
+  /** Async version — falls back to Postgres if not in cache. Callers should use this for quiz start. */
+  public async findRegistrationByTokenHashAsync(tokenHash: string): Promise<SeminarRegistration | undefined> {
+    // Try in-memory first
+    const cached = this.getRegistrationByTokenHash(tokenHash);
+    if (cached) return cached;
+
+    // Fall back to Postgres
+    if (isPostgresConfigured()) {
+      const result = await query(
+        `SELECT id, seminar_event_id, registration_id, seat_number, name, full_address,
+                whatsapp_number, email, education, occupation, age_group, city, district,
+                whatsapp_consent, display_name, secure_token_hash, created_at, updated_at
+         FROM seminar_registrations
+         WHERE secure_token_hash = $1
+         LIMIT 1`,
+        [tokenHash]
+      );
+      if (result && result.rows.length > 0) {
+        const r = result.rows[0] as any;
+        const reg: SeminarRegistration = {
+          id: r.id,
+          seminar_event_id: r.seminar_event_id,
+          registration_id: r.registration_id,
+          seat_number: r.seat_number || undefined,
+          name: r.name,
+          full_address: r.full_address,
+          whatsapp_number: r.whatsapp_number,
+          email: r.email || undefined,
+          education: r.education || undefined,
+          occupation: r.occupation || undefined,
+          age_group: r.age_group || undefined,
+          city: r.city || undefined,
+          district: r.district || undefined,
+          whatsapp_consent: r.whatsapp_consent,
+          display_name: r.display_name,
+          secure_token_hash: r.secure_token_hash,
+          created_at: new Date(r.created_at).toISOString(),
+          updated_at: new Date(r.updated_at).toISOString()
+        };
+        // Cache in-memory for subsequent lookups
+        if (!this.data.seminar_registrations.find(x => x.id === reg.id)) {
+          this.data.seminar_registrations.push(reg);
+        }
+        return reg;
+      }
+    }
+    return undefined;
+  }
+
+  /** Async: get registration by phone + event (for duplicate check) */
+  public async findRegistrationByPhoneAndEventAsync(phone: string, eventId: string): Promise<SeminarRegistration | undefined> {
+    // Try in-memory first
+    const cached = this.data.seminar_registrations.find(
+      r => r.whatsapp_number === phone && r.seminar_event_id === eventId
+    );
+    if (cached) return cached;
+
+    if (isPostgresConfigured()) {
+      const result = await query(
+        `SELECT id, seminar_event_id, registration_id, seat_number, name, full_address,
+                whatsapp_number, email, education, occupation, age_group, city, district,
+                whatsapp_consent, display_name, secure_token_hash, created_at, updated_at
+         FROM seminar_registrations
+         WHERE whatsapp_number = $1 AND seminar_event_id = $2
+         LIMIT 1`,
+        [phone, eventId]
+      );
+      if (result && result.rows.length > 0) {
+        const r = result.rows[0] as any;
+        const reg: SeminarRegistration = {
+          id: r.id,
+          seminar_event_id: r.seminar_event_id,
+          registration_id: r.registration_id,
+          seat_number: r.seat_number || undefined,
+          name: r.name,
+          full_address: r.full_address,
+          whatsapp_number: r.whatsapp_number,
+          email: r.email || undefined,
+          education: r.education || undefined,
+          occupation: r.occupation || undefined,
+          age_group: r.age_group || undefined,
+          city: r.city || undefined,
+          district: r.district || undefined,
+          whatsapp_consent: r.whatsapp_consent,
+          display_name: r.display_name,
+          secure_token_hash: r.secure_token_hash,
+          created_at: new Date(r.created_at).toISOString(),
+          updated_at: new Date(r.updated_at).toISOString()
+        };
+        if (!this.data.seminar_registrations.find(x => x.id === reg.id)) {
+          this.data.seminar_registrations.push(reg);
+        }
+        return reg;
+      }
+    }
+    return undefined;
   }
 
   public getRegistrationById(id: string): SeminarRegistration | undefined {

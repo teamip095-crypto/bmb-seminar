@@ -142,7 +142,7 @@ async function startServer(): Promise<void> {
       }
 
       // Check duplicate registration
-      const existing = db.getRegistrationByPhoneAndEvent(input.whatsapp_number, seminar.event.id);
+      const existing = await db.findRegistrationByPhoneAndEventAsync(input.whatsapp_number, seminar.event.id);
       if (existing) {
         // Return existing registration link securely
         return res.status(200).json({
@@ -336,7 +336,7 @@ async function startServer(): Promise<void> {
       }
 
       const tokenHash = AntiCheatService.hashToken(rawToken);
-      const participant = db.getRegistrationByTokenHash(tokenHash);
+      const participant = await db.findRegistrationByTokenHashAsync(tokenHash);
 
       if (!participant) {
         return res.status(404).json({ error: "Participant registration not found. Please register first." });
@@ -392,7 +392,7 @@ async function startServer(): Promise<void> {
       }
 
       const tokenHash = AntiCheatService.hashToken(participant_token);
-      const participant = db.getRegistrationByTokenHash(tokenHash);
+      const participant = await db.findRegistrationByTokenHashAsync(tokenHash);
       if (!participant) {
         return res.status(401).json({ error: "Invalid or unauthorized participant token" });
       }
@@ -509,7 +509,7 @@ async function startServer(): Promise<void> {
 
       const { attempt_id, participant_token, answers, is_auto_submit } = parseResult.data;
       const tokenHash = AntiCheatService.hashToken(participant_token);
-      const participant = db.getRegistrationByTokenHash(tokenHash);
+      const participant = await db.findRegistrationByTokenHashAsync(tokenHash);
 
       if (!participant) {
         return res.status(401).json({ error: "Unauthorized participant token" });
@@ -612,7 +612,7 @@ async function startServer(): Promise<void> {
 
       // Resolve participant from token hash
       const tokenHash = AntiCheatService.hashToken(participantToken);
-      const participant = db.getRegistrationByTokenHash(tokenHash);
+      const participant = await db.findRegistrationByTokenHashAsync(tokenHash);
       if (!participant) {
         return res.status(404).json({ error: "Participant not found" });
       }
@@ -634,7 +634,7 @@ async function startServer(): Promise<void> {
 
       const { participant_token } = parseResult.data;
       const tokenHash = AntiCheatService.hashToken(participant_token);
-      const participant = db.getRegistrationByTokenHash(tokenHash);
+      const participant = await db.findRegistrationByTokenHashAsync(tokenHash);
 
       if (!participant) {
         return res.status(404).json({ error: "प्रतिभागी पंजीकरण नहीं मिला। कृपया पहले सेमिनार रजिस्ट्रेशन करें।" });
@@ -673,7 +673,7 @@ async function startServer(): Promise<void> {
 
       const { attempt_id, participant_token, answers, is_auto_submit } = parseResult.data;
       const tokenHash = AntiCheatService.hashToken(participant_token);
-      const participant = db.getRegistrationByTokenHash(tokenHash);
+      const participant = await db.findRegistrationByTokenHashAsync(tokenHash);
 
       if (!participant) {
         return res.status(404).json({ error: "Participant not found" });
