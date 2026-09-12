@@ -23,6 +23,7 @@ import {
 } from "./schema";
 import { SEED_QUESTION_BANK } from "../ai/question-bank-seed";
 import { VERIFIED_BMB_KNOWLEDGE_BASE, SEMINAR_27_SCENES_SEED } from "../content/seminar-content-seed";
+import { query, ensureSchema, isPostgresConfigured } from "./supabase-client";
 import { SCHOLARSHIP_20_QUESTIONS, ScholarshipQuestion } from "../ai/scholarship-question-seed";
 import { generateRandomizedScholarshipQuestions, ScholarshipAttemptQuestion } from "../ai/scholarship-question-bank";
 
@@ -78,6 +79,16 @@ class DatabaseService {
   public async initialize(): Promise<void> {
     if (this.isInitialized) return;
 
+    // Try Postgres first — ensure schema and load stateful data
+    if (isPostgresConfigured()) {
+      try {
+        await ensureSchema();
+        await this.loadStatefulDataFromPostgres();
+      } catch (err) {
+        console.warn("[db] Postgres init failed, falling back to in-memory:", err);
+      }
+    }
+
     try {
       const dataDir = path.dirname(this.dbFilePath);
       if (!fs.existsSync(dataDir)) {
@@ -87,7 +98,23 @@ class DatabaseService {
       if (fs.existsSync(this.dbFilePath)) {
         const raw = fs.readFileSync(this.dbFilePath, "utf-8");
         const parsed = JSON.parse(raw);
-        this.data = { ...this.data, ...parsed };
+        // Don't overwrite admins if already loaded from Postgres
+        if (this.data.admin_users.length === 0) {
+          this.data = { ...this.data, ...parsed };
+        } else {
+          const merged = { ...this.data, ...parsed };
+          merged.admin_users = this.data.admin_users;
+          merged.seminar_registrations = this.data.seminar_registrations.length > 0
+            ? this.data.seminar_registrations
+            : parsed.seminar_registrations || [];
+          merged.scholarship_attempts = this.data.scholarship_attempts.length > 0
+            ? this.data.scholarship_attempts
+            : parsed.scholarship_attempts || [];
+          merged.scholarship_submissions = this.data.scholarship_submissions.length > 0
+            ? this.data.scholarship_submissions
+            : parsed.scholarship_submissions || [];
+          this.data = merged;
+        }
       }
       this.data.scholarship_attempts = this.data.scholarship_attempts || [];
       this.data.scholarship_submissions = this.data.scholarship_submissions || [];
@@ -166,6 +193,83 @@ class DatabaseService {
 
     this.persist();
     this.isInitialized = true;
+  }
+
+  // ==========================================
+  // POSTGRES LOAD (read-through cache for cold-start persistence)
+  // ==========================================
+
+  private async loadStatefulDataFromPostgres(): Promise<void> {
+    if (!isPostgresConfigured()) return;
+
+    // Load admins
+    const adminRes = await query(`
+      SELECT id, name, email, whatsapp_number, password_hash, role, status,
+             reset_otp, reset_otp_expires_at, last_login_at, created_at, updated_at
+      FROM admin_users
+      ORDER BY created_at ASC
+    `);
+    if (adminRes && adminRes.rows.length > 0) {
+      this.data.admin_users = adminRes.rows.map((r: any) => ({
+        id: r.id, name: r.name, email: r.email,
+        whatsapp_number: r.whatsapp_number || undefined,
+        password_hash: r.password_hash, role: r.role, status: r.status,
+        reset_otp: r.reset_otp || undefined,
+        reset_otp_expires_at: r.reset_otp_expires_at ? new Date(r.reset_otp_expires_at).toISOString() : undefined,
+        last_login_at: r.last_login_at ? new Date(r.last_login_at).toISOString() : undefined,
+        created_at: new Date(r.created_at).toISOString(),
+        updated_at: new Date(r.updated_at).toISOString()
+      }));
+      console.log(`[db] loaded ${adminRes.rows.length} admin users from Postgres`);
+    }
+
+    // Load registrations
+    const regRes = await query(`
+      SELECT id, seminar_event_id, registration_id, seat_number, name, full_address,
+             whatsapp_number, email, education, occupation, age_group, city, district,
+             whatsapp_consent, display_name, secure_token_hash, created_at, updated_at
+      FROM seminar_registrations
+      ORDER BY created_at ASC
+      LIMIT 1000
+    `);
+    if (regRes && regRes.rows.length > 0) {
+      this.data.seminar_registrations = regRes.rows.map((r: any) => ({
+        id: r.id, seminar_event_id: r.seminar_event_id, registration_id: r.registration_id,
+        seat_number: r.seat_number || undefined, name: r.name, full_address: r.full_address,
+        whatsapp_number: r.whatsapp_number, email: r.email || undefined,
+        education: r.education || undefined, occupation: r.occupation || undefined,
+        age_group: r.age_group || undefined, city: r.city || undefined, district: r.district || undefined,
+        whatsapp_consent: r.whatsapp_consent, display_name: r.display_name,
+        secure_token_hash: r.secure_token_hash,
+        created_at: new Date(r.created_at).toISOString(),
+        updated_at: new Date(r.updated_at).toISOString()
+      }));
+      console.log(`[db] loaded ${regRes.rows.length} registrations from Postgres`);
+    }
+
+    // Load scholarship submissions (we don't load attempts because questions_json is large
+    // and attempts are short-lived)
+    const subRes = await query(`
+      SELECT id, attempt_id, participant_id, seminar_event_id, score, total_questions,
+             duration_seconds, rank, prize_text, prize_type, cash_prize, scholarship_amount,
+             answers_json, created_at
+      FROM scholarship_submissions
+      ORDER BY created_at DESC
+      LIMIT 200
+    `);
+    if (subRes && subRes.rows.length > 0) {
+      this.data.scholarship_submissions = subRes.rows.map((r: any) => ({
+        id: r.id, attempt_id: r.attempt_id, participant_id: r.participant_id,
+        seminar_event_id: r.seminar_event_id, score: r.score,
+        total_questions: r.total_questions, duration_seconds: r.duration_seconds,
+        rank: r.rank || undefined, prize_text: r.prize_text || undefined,
+        prize_type: r.prize_type || undefined, cash_prize: r.cash_prize || undefined,
+        scholarship_amount: r.scholarship_amount || undefined,
+        answers: Array.isArray(r.answers_json) ? r.answers_json : [],
+        created_at: new Date(r.created_at).toISOString()
+      }));
+      console.log(`[db] loaded ${subRes.rows.length} scholarship submissions from Postgres`);
+    }
   }
 
   // --- SEMINAR SETTINGS (ADMIN CONTROLLED) ---
@@ -535,6 +639,25 @@ class DatabaseService {
     };
     this.data.seminar_registrations.push(newReg);
 
+    // Persist to Postgres
+    if (isPostgresConfigured()) {
+      query(
+        `INSERT INTO seminar_registrations
+          (id, seminar_event_id, registration_id, seat_number, name, full_address,
+           whatsapp_number, email, education, occupation, age_group, city, district,
+           whatsapp_consent, display_name, secure_token_hash, created_at, updated_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, NOW(), NOW())
+         ON CONFLICT (id) DO NOTHING`,
+        [
+          newReg.id, newReg.seminar_event_id, newReg.registration_id, newReg.seat_number,
+          newReg.name, newReg.full_address, newReg.whatsapp_number, newReg.email || null,
+          newReg.education || null, newReg.occupation || null, newReg.age_group || null,
+          newReg.city || null, newReg.district || null, newReg.whatsapp_consent,
+          newReg.display_name, newReg.secure_token_hash
+        ]
+      ).catch(err => console.error("[db] Failed to persist registration to Postgres:", err));
+    }
+
     // Automatically create corresponding CRM Lead
     const extraInfo = [reg.education, reg.occupation].filter(Boolean).join(", ");
     this.createAdmissionLead({
@@ -553,6 +676,43 @@ class DatabaseService {
     return this.data.seminar_registrations.find(r => r.secure_token_hash === tokenHash);
   }
 
+  /** Async version — falls back to Postgres if not in cache. Use this for quiz start. */
+  public async findRegistrationByTokenHashAsync(tokenHash: string): Promise<SeminarRegistration | undefined> {
+    const cached = this.getRegistrationByTokenHash(tokenHash);
+    if (cached) return cached;
+
+    if (isPostgresConfigured()) {
+      const result = await query(
+        `SELECT id, seminar_event_id, registration_id, seat_number, name, full_address,
+                whatsapp_number, email, education, occupation, age_group, city, district,
+                whatsapp_consent, display_name, secure_token_hash, created_at, updated_at
+         FROM seminar_registrations
+         WHERE secure_token_hash = $1
+         LIMIT 1`,
+        [tokenHash]
+      );
+      if (result && result.rows.length > 0) {
+        const r = result.rows[0] as any;
+        const reg: SeminarRegistration = {
+          id: r.id, seminar_event_id: r.seminar_event_id, registration_id: r.registration_id,
+          seat_number: r.seat_number || undefined, name: r.name, full_address: r.full_address,
+          whatsapp_number: r.whatsapp_number, email: r.email || undefined,
+          education: r.education || undefined, occupation: r.occupation || undefined,
+          age_group: r.age_group || undefined, city: r.city || undefined, district: r.district || undefined,
+          whatsapp_consent: r.whatsapp_consent, display_name: r.display_name,
+          secure_token_hash: r.secure_token_hash,
+          created_at: new Date(r.created_at).toISOString(),
+          updated_at: new Date(r.updated_at).toISOString()
+        };
+        if (!this.data.seminar_registrations.find(x => x.id === reg.id)) {
+          this.data.seminar_registrations.push(reg);
+        }
+        return reg;
+      }
+    }
+    return undefined;
+  }
+
   public getRegistrationByToken(token: string): SeminarRegistration | undefined {
     return this.data.seminar_registrations.find(
       r => r.registration_id === token || r.id === token || r.secure_token_hash === token
@@ -568,6 +728,43 @@ class DatabaseService {
       r => r.whatsapp_number.replace(/\D/g, "").slice(-10) === phone.replace(/\D/g, "").slice(-10) &&
            r.seminar_event_id === eventId
     );
+  }
+
+  /** Async version — falls back to Postgres for duplicate-check. */
+  public async findRegistrationByPhoneAndEventAsync(phone: string, eventId: string): Promise<SeminarRegistration | undefined> {
+    const cached = this.getRegistrationByPhoneAndEvent(phone, eventId);
+    if (cached) return cached;
+
+    if (isPostgresConfigured()) {
+      const result = await query(
+        `SELECT id, seminar_event_id, registration_id, seat_number, name, full_address,
+                whatsapp_number, email, education, occupation, age_group, city, district,
+                whatsapp_consent, display_name, secure_token_hash, created_at, updated_at
+         FROM seminar_registrations
+         WHERE whatsapp_number = $1 AND seminar_event_id = $2
+         LIMIT 1`,
+        [phone, eventId]
+      );
+      if (result && result.rows.length > 0) {
+        const r = result.rows[0] as any;
+        const reg: SeminarRegistration = {
+          id: r.id, seminar_event_id: r.seminar_event_id, registration_id: r.registration_id,
+          seat_number: r.seat_number || undefined, name: r.name, full_address: r.full_address,
+          whatsapp_number: r.whatsapp_number, email: r.email || undefined,
+          education: r.education || undefined, occupation: r.occupation || undefined,
+          age_group: r.age_group || undefined, city: r.city || undefined, district: r.district || undefined,
+          whatsapp_consent: r.whatsapp_consent, display_name: r.display_name,
+          secure_token_hash: r.secure_token_hash,
+          created_at: new Date(r.created_at).toISOString(),
+          updated_at: new Date(r.updated_at).toISOString()
+        };
+        if (!this.data.seminar_registrations.find(x => x.id === reg.id)) {
+          this.data.seminar_registrations.push(reg);
+        }
+        return reg;
+      }
+    }
+    return undefined;
   }
 
   public getAllRegistrations(filter?: { eventId?: string; search?: string }): (SeminarRegistration & { quizResult?: QuizResult; leadStatus?: string })[] {
@@ -881,11 +1078,11 @@ class DatabaseService {
     return newAttempt;
   }
 
-  public recordScholarshipSubmission(params: {
+  public async recordScholarshipSubmission(params: {
     attemptId: string;
     answers: { question_id: string; selected_option: number }[];
     isAutoSubmit?: boolean;
-  }): {
+  }): Promise<{
     submission: ScholarshipSubmission;
     score: number;
     totalQuestions: number;
@@ -906,7 +1103,7 @@ class DatabaseService {
       explanation: string;
       topic: string;
     }[];
-  } | null {
+  } | null> {
     if (!this.data.scholarship_attempts) this.data.scholarship_attempts = [];
     if (!this.data.scholarship_submissions) this.data.scholarship_submissions = [];
 
@@ -960,6 +1157,31 @@ class DatabaseService {
         lead.notes = `${lead.notes || ""} [Mega Seminar AI Quiz: ${score}/10 in ${duration}s]`;
         if (score >= 7) lead.interest = "high";
         lead.updated_at = submittedAt;
+      }
+
+      // Persist scholarship attempt status + submission to Postgres
+      if (isPostgresConfigured()) {
+        // Update attempt status
+        await query(
+          `UPDATE scholarship_attempts
+           SET status = $1, updated_at = NOW()
+           WHERE id = $2`,
+          [attempt.status, attempt.id]
+        );
+
+        // Insert submission (idempotent)
+        await query(
+          `INSERT INTO scholarship_submissions
+            (id, attempt_id, participant_id, seminar_event_id, score, total_questions,
+             duration_seconds, answers_json, created_at)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())
+           ON CONFLICT (id) DO NOTHING`,
+          [
+            submission.id, submission.attempt_id, submission.participant_id,
+            submission.seminar_event_id, submission.score, submission.total_questions,
+            submission.duration_seconds, JSON.stringify(submission.answers)
+          ]
+        );
       }
 
       this.persist();
@@ -1560,6 +1782,34 @@ class DatabaseService {
       this.data.admin_users = [];
     }
     this.data.admin_users.push(newAdmin);
+
+    // Persist to Postgres (idempotent via ON CONFLICT)
+    if (isPostgresConfigured()) {
+      const result = await query(
+        `INSERT INTO admin_users
+          (id, name, email, whatsapp_number, password_hash, role, status, created_at, updated_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NOW())
+         ON CONFLICT (id) DO UPDATE SET
+           name = EXCLUDED.name,
+           email = EXCLUDED.email,
+           whatsapp_number = EXCLUDED.whatsapp_number,
+           password_hash = EXCLUDED.password_hash,
+           role = EXCLUDED.role,
+           status = EXCLUDED.status,
+           updated_at = NOW()`,
+        [
+          newAdmin.id, newAdmin.name, newAdmin.email || null,
+          newAdmin.whatsapp_number, newAdmin.password_hash,
+          newAdmin.role, newAdmin.status
+        ]
+      );
+      if (result === null) {
+        console.warn("[db] Postgres createSuperAdminUser failed — in-memory only");
+      } else {
+        console.log(`[db] persisted superadmin ${newAdmin.id} to Postgres`);
+      }
+    }
+
     this.persist();
     return newAdmin;
   }
@@ -1601,6 +1851,15 @@ class DatabaseService {
     admin.reset_otp = otp;
     admin.reset_otp_expires_at = new Date(Date.now() + expiresInMinutes * 60 * 1000).toISOString();
     admin.updated_at = new Date().toISOString();
+
+    if (isPostgresConfigured()) {
+      await query(`
+        UPDATE admin_users
+        SET reset_otp = $1, reset_otp_expires_at = NOW() + ($2 * INTERVAL '1 minute'), updated_at = NOW()
+        WHERE id = $3
+      `, [otp, expiresInMinutes, adminId]);
+    }
+
     this.persist();
     return true;
   }
@@ -1628,6 +1887,15 @@ class DatabaseService {
     admin.reset_otp = undefined;
     admin.reset_otp_expires_at = undefined;
     admin.updated_at = new Date().toISOString();
+
+    if (isPostgresConfigured()) {
+      await query(`
+        UPDATE admin_users
+        SET password_hash = $1, reset_otp = NULL, reset_otp_expires_at = NULL, updated_at = NOW()
+        WHERE id = $2
+      `, [newPasswordHash, admin.id]);
+    }
+
     this.persist();
 
     return { success: true, admin };
@@ -1650,6 +1918,29 @@ class DatabaseService {
     }
 
     admin.updated_at = new Date().toISOString();
+
+    if (isPostgresConfigured()) {
+      const setClauses: string[] = [];
+      const params: any[] = [];
+      let paramIdx = 1;
+
+      if (updates.name) { setClauses.push(`name = $${paramIdx++}`); params.push(admin.name); }
+      if (updates.email) { setClauses.push(`email = $${paramIdx++}`); params.push(admin.email); }
+      if (updates.whatsapp_number) { setClauses.push(`whatsapp_number = $${paramIdx++}`); params.push(admin.whatsapp_number); }
+      if (updates.newPassword) { setClauses.push(`password_hash = $${paramIdx++}`); params.push(admin.password_hash); }
+
+      if (setClauses.length > 0) {
+        params.push(id);
+        const sql = `UPDATE admin_users SET ${setClauses.join(", ")}, updated_at = NOW() WHERE id = $${paramIdx}`;
+        const result = await query(sql, params);
+        if (result === null) {
+          console.warn("[db] Postgres updateAdminProfile failed — in-memory only");
+        } else {
+          console.log(`[db] updated admin ${id} in Postgres`);
+        }
+      }
+    }
+
     this.persist();
     return admin;
   }
@@ -1658,6 +1949,12 @@ class DatabaseService {
     const admin = this.data.admin_users.find(u => u.id === id);
     if (admin) {
       admin.last_login_at = new Date().toISOString();
+
+      if (isPostgresConfigured()) {
+        query(`UPDATE admin_users SET last_login_at = NOW() WHERE id = $1`, [id])
+          .catch(err => console.error("[db] Postgres updateAdminLastLogin failed:", err));
+      }
+
       this.persist();
     }
   }

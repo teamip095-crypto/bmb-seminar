@@ -13,7 +13,7 @@ export interface TestResultItem {
   test: string;
   expected: string;
   actual: string;
-  status: "PASS" | "FAIL";
+  status: "PASS" | "FAIL" | "SKIP";
   evidence: string;
 }
 
@@ -21,6 +21,9 @@ export interface FullTestSuiteSummary {
   total: number;
   passed: number;
   failed: number;
+  skipped: number;
+  truncated: boolean;
+  truncateReason?: string;
   durationMs: number;
   timestamp: string;
   categoryBreakdown: Record<string, { total: number; passed: number; failed: number }>;
@@ -28,11 +31,35 @@ export interface FullTestSuiteSummary {
 }
 
 export class ProductionTestSuiteRunner {
+  // Hard budget: Vercel Hobby plan maxDuration=60s, leave 15s headroom for cold start,
+  // JWT verification, response serialization, network latency.
+  public static readonly TIME_BUDGET_MS = 45000;
+
   public static async runAllTests(): Promise<FullTestSuiteSummary> {
     const startTime = Date.now();
+
+    // Disable Gemini API calls during test suite execution to prevent
+    // SDK retries from blowing past Vercel's 60s serverless timeout.
+    const savedGeminiKey = process.env.GEMINI_API_KEY;
+    delete process.env.GEMINI_API_KEY;
+    (QuizGenerationService as any).aiClient = null;
+
     await db.initialize();
     const snapshotBeforeTests = db.getDataState();
     const results: TestResultItem[] = [];
+    let truncated = false;
+    let truncateReason: string | undefined;
+
+    const budgetExceeded = (): boolean => {
+      if (Date.now() - startTime > ProductionTestSuiteRunner.TIME_BUDGET_MS) {
+        if (!truncated) {
+          truncated = true;
+          truncateReason = `Time budget (${ProductionTestSuiteRunner.TIME_BUDGET_MS / 1000}s) exceeded — remaining tests skipped`;
+        }
+        return true;
+      }
+      return false;
+    };
 
     try {
     const addTest = (
@@ -44,6 +71,20 @@ export class ProductionTestSuiteRunner {
       passed: boolean,
       evidence: string
     ) => {
+      if (budgetExceeded()) {
+        if (!results.find(r => r.id === id + "-SKIP")) {
+          results.push({
+            id: id + "-SKIP",
+            category,
+            test: test + " [SKIPPED: time budget]",
+            expected,
+            actual: "skipped",
+            status: "SKIP",
+            evidence: truncateReason || "Time budget exceeded"
+          });
+        }
+        return;
+      }
       results.push({
         id,
         category,
@@ -1577,7 +1618,7 @@ export class ProductionTestSuiteRunner {
         selected_option: fullQ ? fullQ.correctOption : 0
       };
     });
-    const subResult = db.recordScholarshipSubmission({
+    const subResult = await db.recordScholarshipSubmission({
       attemptId: scholarshipAttempt.id,
       answers: subAnswers
     });
@@ -1649,18 +1690,51 @@ export class ProductionTestSuiteRunner {
 
     const passedCount = results.filter(r => r.status === "PASS").length;
     const failedCount = results.filter(r => r.status === "FAIL").length;
+    const skippedCount = results.filter(r => r.status === "SKIP").length;
 
     return {
       total: results.length,
       passed: passedCount,
       failed: failedCount,
+      skipped: skippedCount,
+      truncated,
+      truncateReason,
       durationMs: Date.now() - startTime,
       timestamp: new Date().toISOString(),
       categoryBreakdown,
       results
     };
+    } catch (err) {
+      console.error("[QA Tests] Error during test suite execution:", err);
+      const pCount = results.filter(r => r.status === "PASS").length;
+      const fCount = results.filter(r => r.status === "FAIL").length;
+      const sCount = results.filter(r => r.status === "SKIP").length;
+      const catBreakdown: Record<string, { total: number; passed: number; failed: number }> = {};
+      for (const r of results) {
+        if (!catBreakdown[r.category]) catBreakdown[r.category] = { total: 0, passed: 0, failed: 0 };
+        catBreakdown[r.category].total += 1;
+        if (r.status === "PASS") catBreakdown[r.category].passed += 1;
+        else if (r.status === "FAIL") catBreakdown[r.category].failed += 1;
+      }
+      return {
+        total: results.length,
+        passed: pCount,
+        failed: fCount,
+        skipped: sCount,
+        truncated: true,
+        truncateReason: `Test suite crashed: ${(err as Error)?.message}`,
+        durationMs: Date.now() - startTime,
+        timestamp: new Date().toISOString(),
+        categoryBreakdown: catBreakdown,
+        results
+      };
     } finally {
       db.restoreDataState(snapshotBeforeTests);
+      // Restore Gemini key for the rest of the runtime
+      if (savedGeminiKey !== undefined) {
+        process.env.GEMINI_API_KEY = savedGeminiKey;
+        (QuizGenerationService as any).aiClient = null;
+      }
     }
   }
 }

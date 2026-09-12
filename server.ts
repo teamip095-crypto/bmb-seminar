@@ -3,7 +3,6 @@ import path from "path";
 import fs from "fs";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
-import { createServer as createViteServer } from "vite";
 import { db } from "./server/db/database";
 import { FridayEngine } from "./server/friday-engine";
 import { QuizGenerationService } from "./server/ai/gemini-service";
@@ -25,6 +24,7 @@ import {
   SeminarSettingsUpdateSchema,
   AdminAccountUpdateSchema
 } from "./server/db/schema";
+import type { IncomingMessage, ServerResponse } from "http";
 
 const PORT = 3000;
 const JWT_SECRET = process.env.JWT_SECRET || "bmb-educom-ai-seminar-secret-jwt-key-2026";
@@ -38,15 +38,21 @@ interface AuthRequest extends Request {
   };
 }
 
-async function startServer() {
-  const app = express();
+// Module-level Express app — synchronous so Vercel can attach handlers immediately
+const app = express();
+let initPromise: Promise<void>;
 
+async function startServer(): Promise<void> {
   // Basic Middlewares
   app.use(express.json({ limit: "10mb" }));
   app.use(express.urlencoded({ extended: true }));
 
   // Initialize DB & Seed Data
-  await db.initialize();
+  try {
+    await db.initialize();
+  } catch (err) {
+    console.error("[bmb-seminar] DB initialization failed (continuing in-memory):", err);
+  }
 
   // Auth Middleware (supports both Authorization header and query token for direct file downloads)
   const authenticateAdmin = (req: AuthRequest, res: Response, next: NextFunction) => {
@@ -158,7 +164,7 @@ async function startServer() {
       }
 
       // Check duplicate registration
-      const existing = db.getRegistrationByPhoneAndEvent(input.whatsapp_number, seminar.event.id);
+      const existing = await db.findRegistrationByPhoneAndEventAsync(input.whatsapp_number, seminar.event.id);
       if (existing) {
         // Return existing registration link securely
         return res.status(200).json({
@@ -352,7 +358,7 @@ async function startServer() {
       }
 
       const tokenHash = AntiCheatService.hashToken(rawToken);
-      const participant = db.getRegistrationByTokenHash(tokenHash);
+      const participant = await db.findRegistrationByTokenHashAsync(tokenHash);
 
       if (!participant) {
         return res.status(404).json({ error: "Participant registration not found. Please register first." });
@@ -408,7 +414,7 @@ async function startServer() {
       }
 
       const tokenHash = AntiCheatService.hashToken(participant_token);
-      const participant = db.getRegistrationByTokenHash(tokenHash);
+      const participant = await db.findRegistrationByTokenHashAsync(tokenHash);
       if (!participant) {
         return res.status(401).json({ error: "Invalid or unauthorized participant token" });
       }
@@ -525,7 +531,7 @@ async function startServer() {
 
       const { attempt_id, participant_token, answers, is_auto_submit } = parseResult.data;
       const tokenHash = AntiCheatService.hashToken(participant_token);
-      const participant = db.getRegistrationByTokenHash(tokenHash);
+      const participant = await db.findRegistrationByTokenHashAsync(tokenHash);
 
       if (!participant) {
         return res.status(401).json({ error: "Unauthorized participant token" });
@@ -664,7 +670,7 @@ async function startServer() {
       }
 
       const tokenHash = AntiCheatService.hashToken(rawToken);
-      const participant = db.getRegistrationByTokenHash(tokenHash);
+      const participant = await db.findRegistrationByTokenHashAsync(tokenHash);
       if (!participant) {
         return res.status(401).json({ error: "Invalid participant token" });
       }
@@ -728,7 +734,7 @@ async function startServer() {
       }
 
       const tokenHash = AntiCheatService.hashToken(participant_token);
-      const participant = db.getRegistrationByTokenHash(tokenHash);
+      const participant = await db.findRegistrationByTokenHashAsync(tokenHash);
       if (!participant) {
         return res.status(401).json({ error: "अमान्य या अनधिकृत छात्र टोकन।" });
       }
@@ -829,7 +835,7 @@ async function startServer() {
       }
 
       const tokenHash = AntiCheatService.hashToken(participant_token);
-      const participant = db.getRegistrationByTokenHash(tokenHash);
+      const participant = await db.findRegistrationByTokenHashAsync(tokenHash);
       if (!participant) {
         return res.status(401).json({ error: "Invalid or unauthorized participant token" });
       }
@@ -943,7 +949,7 @@ async function startServer() {
 
       const { attempt_id, participant_token, answers, is_auto_submit } = parseResult.data;
       const tokenHash = AntiCheatService.hashToken(participant_token);
-      const participant = db.getRegistrationByTokenHash(tokenHash);
+      const participant = await db.findRegistrationByTokenHashAsync(tokenHash);
       if (!participant) {
         return res.status(401).json({ error: "Unauthorized participant submission" });
       }
@@ -953,7 +959,7 @@ async function startServer() {
         return res.status(404).json({ error: "Scholarship attempt not found" });
       }
 
-      const scored = db.recordScholarshipSubmission({
+      const scored = await db.recordScholarshipSubmission({
         attemptId: attempt_id,
         answers,
         isAutoSubmit: Boolean(is_auto_submit)
@@ -1897,13 +1903,17 @@ async function startServer() {
   // ==========================================
   // VITE DEVELOPMENT & PRODUCTION MIDDLEWARES
   // ==========================================
-  if (process.env.NODE_ENV !== "production") {
+  if (process.env.NODE_ENV !== "production" && !process.env.VERCEL) {
+    // Lazy-load Vite only in local dev (Vite crashes on top-level import in serverless).
+    const { createServer: createViteServer } = await import("vite");
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: "spa"
     });
     app.use(vite.middlewares);
-  } else {
+  } else if (!process.env.VERCEL) {
+    // Only needed for traditional Node hosting (npm start).
+    // On Vercel, static assets are served by the platform via outputDirectory: dist.
     const distPath = path.join(process.cwd(), "dist");
     app.use(express.static(distPath));
     app.get("*", (req: Request, res: Response) => {
@@ -1911,12 +1921,42 @@ async function startServer() {
     });
   }
 
-  app.listen(PORT, "0.0.0.0", () => {
-    console.log(`BMB Educom AI Seminar Platform running on http://localhost:${PORT}`);
-  });
+  if (!process.env.VERCEL) {
+    app.listen(PORT, "0.0.0.0", () => {
+      console.log(`BMB Educom AI Seminar Platform running on http://localhost:${PORT}`);
+    });
+  }
 }
 
-startServer().catch(err => {
-  console.error("Failed to start BMB Educom server:", err);
-  process.exit(1);
-});
+// Kick off async server initialization at module load (works for both Vercel cold-starts and local dev)
+// Capture errors so the function still responds with a diagnostic message
+initPromise = startServer()
+  .then(() => {
+    console.log("[bmb-seminar] startServer() completed successfully");
+  })
+  .catch(err => {
+    console.error("[bmb-seminar] Failed to start server:", err);
+    if (!process.env.VERCEL) process.exit(1);
+  });
+
+// Vercel serverless handler — waits for async setup, then forwards request to Express app
+export default async function handler(req: IncomingMessage, res: ServerResponse): Promise<void> {
+  try {
+    await initPromise;
+    if (!app) {
+      res.statusCode = 500;
+      res.setHeader("Content-Type", "application/json");
+      res.end(JSON.stringify({ error: "Express app not initialized", stage: "after-init-promise" }));
+      return;
+    }
+    (app as unknown as (r: IncomingMessage, s: ServerResponse) => void)(req, res);
+  } catch (err: any) {
+    res.statusCode = 500;
+    res.setHeader("Content-Type", "application/json");
+    res.end(JSON.stringify({
+      error: "Function invocation error",
+      message: err?.message,
+      stack: err?.stack?.split("\n").slice(0, 8)
+    }));
+  }
+}
