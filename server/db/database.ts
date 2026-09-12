@@ -54,7 +54,10 @@ class DatabaseService {
   private isInitialized = false;
 
   constructor() {
-    this.dbFilePath = path.resolve(process.cwd(), ".data", "bmb_production_store.json");
+    // On Vercel serverless (read-only FS), use /tmp for the in-memory JSON store.
+    // Note: this file is ephemeral on Vercel — real persistence goes through Supabase Postgres.
+    const baseDir = process.env.VERCEL ? "/tmp" : process.cwd();
+    this.dbFilePath = path.resolve(baseDir, ".data", "bmb_production_store.json");
     this.data = {
       admin_users: [],
       seminar_events: [],

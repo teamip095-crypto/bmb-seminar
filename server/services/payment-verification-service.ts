@@ -16,8 +16,18 @@ export class PaymentVerificationService {
   private static screenshotsDir = path.resolve(process.cwd(), ".data", "screenshots");
 
   public static ensureDirectory(): void {
-    if (!fs.existsSync(PaymentVerificationService.screenshotsDir)) {
-      fs.mkdirSync(PaymentVerificationService.screenshotsDir, { recursive: true });
+    try {
+      // On Vercel serverless (read-only FS), /tmp is the only writable directory.
+      // Fall back to /tmp/.data/screenshots so screenshot upload still works.
+      const isVercel = Boolean(process.env.VERCEL);
+      const baseDir = isVercel ? "/tmp" : process.cwd();
+      PaymentVerificationService.screenshotsDir = path.resolve(baseDir, ".data", "screenshots");
+      if (!fs.existsSync(PaymentVerificationService.screenshotsDir)) {
+        fs.mkdirSync(PaymentVerificationService.screenshotsDir, { recursive: true });
+      }
+    } catch (err) {
+      // Silently fail — screenshots won't be storable but the app will still boot.
+      console.warn("[payment-verification] ensureDirectory failed (likely read-only FS):", (err as Error).message);
     }
   }
 

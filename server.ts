@@ -818,8 +818,13 @@ async function startServer(): Promise<void> {
   });
 
   // Serve static uploaded screenshots securely
+  // (PaymentVerificationService.ensureDirectory already handles Vercel's read-only FS gracefully.)
   PaymentVerificationService.ensureDirectory();
-  app.use("/api/admin/screenshots", express.static(path.resolve(process.cwd(), ".data", "screenshots")));
+  // On Vercel, screenshots live in /tmp/.data/screenshots — match the dir used by ensureDirectory.
+  const screenshotsPath = process.env.VERCEL
+    ? path.resolve("/tmp", ".data", "screenshots")
+    : path.resolve(process.cwd(), ".data", "screenshots");
+  app.use("/api/admin/screenshots", express.static(screenshotsPath));
 
   // ==========================================
   // 5-MINUTE MEGA AI SEMINAR SCHOLARSHIP QUIZ (STAGE 2)
