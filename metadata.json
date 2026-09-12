@@ -1,0 +1,6 @@
+{
+  "name": "BMB Educom AI Seminar",
+  "description": "Production Lead Generation, Hindi AI Learning, 20-Question Server-Authoritative Cash Scholarship Exam, Dynamic Admin Controls, Live Leaderboard & Admission CRM Platform.",
+  "requestFramePermissions": ["microphone"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
