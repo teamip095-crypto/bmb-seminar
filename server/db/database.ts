@@ -292,6 +292,41 @@ class DatabaseService {
       }));
       console.log(`[db] loaded ${qrRes.rows.length} quiz results from Postgres`);
     }
+
+    // Load pass purchases (free pass winners + ₹199 paid passes)
+    const passRes = await query(`
+      SELECT id, participant_id, registration_id, participant_name, whatsapp_number,
+             amount_paid, original_amount, payment_method, upi_id, utr_number,
+             screenshot_url, screenshot_filename, verification_status, verified_at,
+             invoice_number, pass_type, notes, whatsapp_sent, created_at
+      FROM pass_purchases
+      ORDER BY created_at DESC
+      LIMIT 500
+    `);
+    if (passRes && passRes.rows.length > 0) {
+      this.data.pass_purchases = passRes.rows.map((r: any) => ({
+        id: r.id,
+        participant_id: r.participant_id,
+        registration_id: r.registration_id,
+        participant_name: r.participant_name,
+        whatsapp_number: r.whatsapp_number,
+        amount_paid: r.amount_paid,
+        original_amount: r.original_amount,
+        payment_method: r.payment_method,
+        upi_id: r.upi_id || "",
+        utr_number: r.utr_number || "",
+        screenshot_url: r.screenshot_url || undefined,
+        screenshot_filename: r.screenshot_filename || undefined,
+        verification_status: r.verification_status,
+        verified_at: r.verified_at ? new Date(r.verified_at).toISOString() : undefined,
+        invoice_number: r.invoice_number || "",
+        pass_type: r.pass_type,
+        notes: r.notes || undefined,
+        whatsapp_sent: r.whatsapp_sent || false,
+        created_at: new Date(r.created_at).toISOString()
+      }));
+      console.log(`[db] loaded ${passRes.rows.length} pass purchases from Postgres`);
+    }
   }
 
   // --- SEMINAR SETTINGS (ADMIN CONTROLLED) ---
@@ -1569,6 +1604,26 @@ class DatabaseService {
         created_at: now
       };
       this.data.pass_purchases.push(newPass);
+
+      // Persist to Postgres — survives Vercel cold starts
+      if (isPostgresConfigured()) {
+        query(
+          `INSERT INTO pass_purchases
+            (id, participant_id, registration_id, participant_name, whatsapp_number,
+             amount_paid, original_amount, payment_method, upi_id, utr_number,
+             verification_status, verified_at, invoice_number, pass_type, notes, whatsapp_sent, created_at)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW(), $12, $13, $14, $15, NOW())
+           ON CONFLICT (participant_id) DO NOTHING`,
+          [
+            newPass.id, newPass.participant_id, newPass.registration_id,
+            newPass.participant_name, newPass.whatsapp_number,
+            newPass.amount_paid, newPass.original_amount, newPass.payment_method,
+            newPass.upi_id, newPass.utr_number, newPass.verification_status,
+            newPass.invoice_number, newPass.pass_type, newPass.notes, newPass.whatsapp_sent
+          ]
+        ).catch(err => console.error("[db] Failed to persist free pass to Postgres:", err));
+      }
+
       this.persist();
       return newPass;
     }
@@ -1617,6 +1672,29 @@ class DatabaseService {
     };
 
     this.data.pass_purchases.push(newPass);
+
+    // Persist to Postgres
+    if (isPostgresConfigured()) {
+      query(
+        `INSERT INTO pass_purchases
+          (id, participant_id, registration_id, participant_name, whatsapp_number,
+           amount_paid, original_amount, payment_method, upi_id, utr_number,
+           screenshot_url, screenshot_filename, verification_status, verified_at,
+           invoice_number, pass_type, notes, whatsapp_sent, created_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, NOW(), $14, $15, $16, $17, NOW())
+         ON CONFLICT (participant_id) DO NOTHING`,
+        [
+          newPass.id, newPass.participant_id, newPass.registration_id,
+          newPass.participant_name, newPass.whatsapp_number,
+          newPass.amount_paid, newPass.original_amount, newPass.payment_method,
+          newPass.upi_id, newPass.utr_number,
+          newPass.screenshot_url || null, newPass.screenshot_filename || null,
+          newPass.verification_status, newPass.invoice_number,
+          newPass.pass_type, newPass.notes, newPass.whatsapp_sent
+        ]
+      ).catch(err => console.error("[db] Failed to persist pass purchase to Postgres:", err));
+    }
+
     this.persist();
     return newPass;
   }
@@ -1628,9 +1706,92 @@ class DatabaseService {
 
   public getPassPurchaseByParticipant(participantId: string): SeminarPassPurchase | undefined {
     if (!this.data.pass_purchases) return undefined;
-    return this.data.pass_purchases.find(p => p.participant_id === participantId && p.verification_status === "verified");
+    const cached = this.data.pass_purchases.find(p => p.participant_id === participantId && p.verification_status === "verified");
+    if (cached) return cached;
+    return undefined; // Postgres lookup is async — handled via loadStatefulDataFromPostgres at init
   }
 
+  /** Async version — falls back to Postgres if not in cache. */
+  public async findPassPurchaseByParticipantAsync(participantId: string): Promise<SeminarPassPurchase | undefined> {
+    const cached = this.getPassPurchaseByParticipant(participantId);
+    if (cached) return cached;
+
+    if (isPostgresConfigured()) {
+      const result = await query(
+        `SELECT id, participant_id, registration_id, participant_name, whatsapp_number,
+                amount_paid, original_amount, payment_method, upi_id, utr_number,
+                screenshot_url, screenshot_filename, verification_status, verified_at,
+                invoice_number, pass_type, notes, whatsapp_sent, created_at
+         FROM pass_purchases
+         WHERE participant_id = $1 AND verification_status = 'verified'
+         LIMIT 1`,
+        [participantId]
+      );
+      if (result && result.rows.length > 0) {
+        const r = result.rows[0] as any;
+        const pass: SeminarPassPurchase = {
+          id: r.id,
+          participant_id: r.participant_id,
+          registration_id: r.registration_id,
+          participant_name: r.participant_name,
+          whatsapp_number: r.whatsapp_number,
+          amount_paid: r.amount_paid,
+          original_amount: r.original_amount,
+          payment_method: r.payment_method,
+          upi_id: r.upi_id || "",
+          utr_number: r.utr_number || "",
+          screenshot_url: r.screenshot_url || undefined,
+          screenshot_filename: r.screenshot_filename || undefined,
+          verification_status: r.verification_status,
+          verified_at: r.verified_at ? new Date(r.verified_at).toISOString() : undefined,
+          invoice_number: r.invoice_number || "",
+          pass_type: r.pass_type,
+          notes: r.notes || undefined,
+          whatsapp_sent: r.whatsapp_sent || false,
+          created_at: new Date(r.created_at).toISOString()
+        };
+        if (!this.data.pass_purchases) this.data.pass_purchases = [];
+        if (!this.data.pass_purchases.find(p => p.id === pass.id)) {
+          this.data.pass_purchases.push(pass);
+        }
+        return pass;
+      }
+    }
+    return undefined;
+  }
+
+  public async isParticipantEligibleForRound2Async(participantId: string): Promise<{
+    eligible: boolean;
+    reason: "free_pass_winner" | "paid_pass" | "not_eligible";
+    pass?: SeminarPassPurchase;
+  }> {
+    // Try in-memory first, then Postgres fallback
+    const pass = await this.findPassPurchaseByParticipantAsync(participantId);
+    if (pass && pass.verification_status === "verified") {
+      return {
+        eligible: true,
+        reason: (pass.payment_method === "free_pass" || pass.pass_type === "round1_winner_free") ? "free_pass_winner" : "paid_pass",
+        pass
+      };
+    }
+
+    // Try granting free pass if they're a Round 1 winner
+    const freePass = this.grantFreePassIfEligible(participantId);
+    if (freePass) {
+      return {
+        eligible: true,
+        reason: "free_pass_winner",
+        pass: freePass
+      };
+    }
+
+    return {
+      eligible: false,
+      reason: "not_eligible"
+    };
+  }
+
+  // Keep the sync version for backward compat (uses in-memory only)
   public isParticipantEligibleForRound2(participantId: string): {
     eligible: boolean;
     reason: "free_pass_winner" | "paid_pass" | "not_eligible";

@@ -707,8 +707,8 @@ async function startServer(): Promise<void> {
       const isRound1Completed = Boolean(myRank);
       const isTop10Winner = Boolean(myRank?.isFreePassWinner);
 
-      const eligibility = db.isParticipantEligibleForRound2(participant.id);
-      const pass = eligibility.pass || db.getPassPurchaseByParticipant(participant.id) || null;
+      const eligibility = await db.isParticipantEligibleForRound2Async(participant.id);
+      const pass = eligibility.pass || await db.findPassPurchaseByParticipantAsync(participant.id) || null;
       const allPasses = db.getAllPassPurchases().filter(p => p.verification_status === "verified");
       const settings = db.getSeminarSettings();
 
