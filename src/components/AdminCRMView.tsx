@@ -1567,6 +1567,19 @@ export const AdminCRMView: React.FC<AdminCRMViewProps> = ({ seminarStatus, onSem
   }
 
   const leadsList = dashboardData.leads || [];
+  // Build a lookup map of registrations (by participant_id) so we can show full quiz result
+  // (score, duration, status) instead of just the lead's quiz_score field.
+  const registrationsById = new Map<string, any>();
+  (dashboardData.registrations || []).forEach((r: any) => {
+    if (r.id) registrationsById.set(r.id, r);
+  });
+
+  // Build a lookup map of scholarship submissions (by participant_id) for rank/prize info.
+  const scholarshipByParticipantId = new Map<string, any>();
+  (dashboardData.scholarshipSubmissions || []).forEach((s: any) => {
+    if (s.participantId) scholarshipByParticipantId.set(s.participantId, s);
+  });
+
   const filteredLeads = leadsList.filter(l => {
     const matchesStatus = crmStatusFilter === "all" || l.status === crmStatusFilter;
     const q = crmSearchQuery.toLowerCase();
@@ -1801,7 +1814,7 @@ export const AdminCRMView: React.FC<AdminCRMViewProps> = ({ seminarStatus, onSem
             </div>
           )}
 
-          {/* CRM Leads Table */}
+          {/* CRM Leads Table — shows full participant + quiz + scholarship details */}
           <div className="bg-neutral-900 border border-neutral-800 rounded-3xl overflow-hidden shadow-xl">
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs">
@@ -1810,7 +1823,8 @@ export const AdminCRMView: React.FC<AdminCRMViewProps> = ({ seminarStatus, onSem
                     <th className="py-3 px-4">Lead / Participant</th>
                     <th className="py-3 px-4">Phone & Address</th>
                     <th className="py-3 px-4">Details / Source</th>
-                    <th className="py-3 px-4 text-center">Quiz Score</th>
+                    <th className="py-3 px-4 text-center">2-Min Quiz<br/>(Score/Time/Status)</th>
+                    <th className="py-3 px-4 text-center">Scholarship Quiz<br/>(Score/Time/Rank/Prize)</th>
                     <th className="py-3 px-4">Pipeline Status</th>
                     <th className="py-3 px-4 text-right">Actions</th>
                   </tr>
@@ -1818,7 +1832,7 @@ export const AdminCRMView: React.FC<AdminCRMViewProps> = ({ seminarStatus, onSem
                 <tbody className="divide-y divide-neutral-800/60">
                   {filteredLeads.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="py-12 px-4 text-center">
+                      <td colSpan={7} className="py-12 px-4 text-center">
                         <div className="max-w-md mx-auto space-y-2">
                           <Users className="w-8 h-8 text-neutral-600 mx-auto" />
                           <p className="text-sm font-bold text-white">कोई फेक डेटा या डमी लीड नहीं है (100% Clean CRM)</p>
@@ -1834,27 +1848,76 @@ export const AdminCRMView: React.FC<AdminCRMViewProps> = ({ seminarStatus, onSem
                     const cleanPhone = p?.whatsapp_number.replace(/\D/g, "") || "";
                     const waChatLink = `https://wa.me/91${cleanPhone}?text=${encodeURIComponent(`नमस्ते ${p?.name || ""} जी, BMB Educom AI सेमिनार में भाग लेने के लिए धन्यवाद। एडमिशन और प्रैक्टिकल कोर्स के बारे में अधिक जानकारी के लिए हम आपसे संपर्क कर रहे हैं।`)}`;
 
+                    // Look up full registration record to get the quizResult object (score + duration + status)
+                    const fullReg = p?.id ? registrationsById.get(p.id) : undefined;
+                    const quizResult = fullReg?.quizResult; // {score, total_questions, duration_seconds, result_status}
+                    const scholarship = p?.id ? scholarshipByParticipantId.get(p.id) : undefined;
+
                     return (
                       <tr key={lead.id} className="hover:bg-neutral-850/50">
                         <td className="py-3 px-4">
                           <div className="font-bold text-white">{p?.name || "Participant"}</div>
                           <div className="text-[11px] font-mono text-neutral-400">{p?.registration_id}</div>
+                          <div className="text-[10px] text-neutral-500 mt-0.5">Seat: {p?.seat_number || "—"}</div>
                         </td>
                         <td className="py-3 px-4 max-w-[200px]">
                           <div className="text-white font-mono">{p?.whatsapp_number}</div>
                           <div className="text-[11px] text-neutral-400 truncate" title={p?.full_address || p?.city || ""}>
                             {p?.full_address || p?.city || "Registered"}
                           </div>
+                          {p?.email && <div className="text-[10px] text-neutral-500 truncate">{p.email}</div>}
                         </td>
                         <td className="py-3 px-4">
                           <div className="text-neutral-200">{p?.education || "AI Seminar"}</div>
                           <div className="text-[11px] text-amber-400">{p?.occupation || "AI Learner"}</div>
+                          {p?.age_group && <div className="text-[10px] text-neutral-500">Age: {p.age_group}</div>}
                         </td>
                         <td className="py-3 px-4 text-center font-mono font-bold">
-                          {lead.quiz_score !== undefined ? (
-                            <span className="text-amber-400">{lead.quiz_score}/4</span>
+                          {quizResult ? (
+                            <div className="space-y-1">
+                              <div className={`text-base font-black ${quizResult.score >= 3 ? "text-emerald-400" : "text-amber-400"}`}>
+                                {quizResult.score}<span className="text-neutral-500 text-xs">/{quizResult.total_questions || 5}</span>
+                              </div>
+                              <div className="text-[10px] text-neutral-400 font-mono">
+                                {quizResult.duration_seconds}s
+                              </div>
+                              <div className={`text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded inline-block ${
+                                quizResult.result_status === "passed" ? "bg-emerald-500/20 text-emerald-300" :
+                                quizResult.result_status === "time_out" ? "bg-orange-500/20 text-orange-300" :
+                                "bg-neutral-700/40 text-neutral-300"
+                              }`}>
+                                {quizResult.result_status === "passed" ? "Passed" :
+                                 quizResult.result_status === "time_out" ? "Timeout" : "Participated"}
+                              </div>
+                            </div>
                           ) : (
-                            <span className="text-neutral-500">—</span>
+                            <span className="text-neutral-500 text-[11px]">Not Attempted</span>
+                          )}
+                        </td>
+                        <td className="py-3 px-4 text-center font-mono font-bold">
+                          {scholarship ? (
+                            <div className="space-y-1">
+                              <div className={`text-base font-black ${scholarship.rank <= 3 ? "text-yellow-400" : "text-purple-400"}`}>
+                                {scholarship.score}<span className="text-neutral-500 text-xs">/{scholarship.totalQuestions}</span>
+                              </div>
+                              <div className="text-[10px] text-neutral-400 font-mono">
+                                {scholarship.durationSeconds}s
+                              </div>
+                              <div className={`text-[10px] font-bold px-2 py-0.5 rounded inline-block ${
+                                scholarship.rank <= 3
+                                  ? "bg-yellow-500/20 text-yellow-300 border border-yellow-500/40"
+                                  : "bg-purple-500/20 text-purple-300 border border-purple-500/40"
+                              }`}>
+                                Rank #{scholarship.rank}
+                              </div>
+                              {scholarship.prizeText && (
+                                <div className="text-[9px] text-amber-300 leading-tight max-w-[120px] mx-auto mt-1">
+                                  {scholarship.prizeText}
+                                </div>
+                              )}
+                            </div>
+                          ) : (
+                            <span className="text-neutral-500 text-[11px]">Not Attempted</span>
                           )}
                         </td>
                         <td className="py-3 px-4">
@@ -1893,7 +1956,7 @@ export const AdminCRMView: React.FC<AdminCRMViewProps> = ({ seminarStatus, onSem
                               <FileText className="w-3.5 h-3.5" />
                             </button>
 
-                            {lead.quiz_score !== undefined && (
+                            {quizResult && (
                               <button
                                 onClick={() => handleResetSeminarQuiz(lead.participant_id, p?.name || "Participant")}
                                 className="p-1.5 rounded-lg bg-red-950/40 text-red-300 border border-red-500/30 hover:bg-red-900/50"

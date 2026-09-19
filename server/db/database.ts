@@ -2020,19 +2020,31 @@ class DatabaseService {
     averageScore: number;
     averageDuration: number;
     topPerformersCount: number;
+    scholarshipCompleted: number;
+    scholarshipAverageScore: number;
+    scholarshipWinnersCount: number;
     leadsByStatus: Record<string, number>;
     whatsAppStats: { total: number; sent: number; pending: number; failed: number };
   } {
     const allRegs = this.data.seminar_registrations;
     const eventRegs = allRegs.filter(r => r.seminar_event_id === eventId);
-    const scholarshipSubs = this.data.scholarship_submissions || [];
 
-    const quizCompleted = scholarshipSubs.length;
-    const totalScore = scholarshipSubs.reduce((acc, r) => acc + r.score, 0);
-    const totalDuration = scholarshipSubs.reduce((acc, r) => acc + r.duration_seconds, 0);
+    // 2-minute seminar quiz metrics (from quiz_results)
+    const seminarQuizResults = this.data.quiz_results.filter(r => r.seminar_event_id === eventId);
+    const quizCompleted = seminarQuizResults.length;
+    const totalScore = seminarQuizResults.reduce((acc, r) => acc + r.score, 0);
+    const totalDuration = seminarQuizResults.reduce((acc, r) => acc + r.duration_seconds, 0);
     const averageScore = quizCompleted > 0 ? Number((totalScore / quizCompleted).toFixed(1)) : 0;
     const averageDuration = quizCompleted > 0 ? Math.round(totalDuration / quizCompleted) : 0;
-    const topPerformersCount = scholarshipSubs.filter(r => r.score === 20).length;
+    const topPerformersCount = seminarQuizResults.filter(r => r.score >= 4).length;
+
+    // Scholarship quiz metrics (separate from 2-min quiz)
+    const scholarshipSubs = (this.data.scholarship_submissions || []).filter(s => s.seminar_event_id === eventId);
+    const scholarshipCompleted = scholarshipSubs.length;
+    const schTotalScore = scholarshipSubs.reduce((acc, r) => acc + r.score, 0);
+    const scholarshipAverageScore = scholarshipCompleted > 0 ? Number((schTotalScore / scholarshipCompleted).toFixed(1)) : 0;
+    // Winners are those with rank 1-10 (cash or gift)
+    const scholarshipWinnersCount = scholarshipSubs.filter(s => s.rank && s.rank >= 1 && s.rank <= 10).length;
 
     const leadsByStatus: Record<string, number> = {};
     for (const lead of this.data.admission_leads) {
@@ -2053,6 +2065,9 @@ class DatabaseService {
       averageScore,
       averageDuration,
       topPerformersCount,
+      scholarshipCompleted,
+      scholarshipAverageScore,
+      scholarshipWinnersCount,
       leadsByStatus,
       whatsAppStats
     };
