@@ -99,7 +99,7 @@ ${params.pdfDownloadUrl || "https://acesse.one/bq9atwd"}
     const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID;
 
     // Truthful credential checking
-    if (!apiToken || !phoneNumberId) {
+    if (!apiToken || !phoneNumberId || apiToken.startsWith('PASTE_') || phoneNumberId.startsWith('PASTE_') || apiToken === 'MY_WHATSAPP_API_TOKEN' || phoneNumberId === 'MY_WHATSAPP_PHONE_NUMBER_ID') {
       db.updateWhatsAppMessageStatus(
         msgRecord.id,
         "pending_configuration",
@@ -211,7 +211,7 @@ ${params.pdfDownloadUrl || "https://acesse.one/bq9atwd"}
     const apiToken = process.env.WHATSAPP_API_TOKEN;
     const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID;
 
-    if (!apiToken || !phoneNumberId) {
+    if (!apiToken || !phoneNumberId || apiToken.startsWith('PASTE_') || phoneNumberId.startsWith('PASTE_') || apiToken === 'MY_WHATSAPP_API_TOKEN' || phoneNumberId === 'MY_WHATSAPP_PHONE_NUMBER_ID') {
       db.updateWhatsAppMessageStatus(
         msgRecord.id,
         "pending_configuration",
@@ -316,7 +316,7 @@ ${params.pdfDownloadUrl || "https://acesse.one/bq9atwd"}
     const apiToken = process.env.WHATSAPP_API_TOKEN;
     const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID;
 
-    if (!apiToken || !phoneNumberId) {
+    if (!apiToken || !phoneNumberId || apiToken.startsWith('PASTE_') || phoneNumberId.startsWith('PASTE_') || apiToken === 'MY_WHATSAPP_API_TOKEN' || phoneNumberId === 'MY_WHATSAPP_PHONE_NUMBER_ID') {
       db.updateWhatsAppMessageStatus(msgRecord.id, "pending_configuration");
       return {
         messageId: msgRecord.id,
