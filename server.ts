@@ -12,6 +12,7 @@ import { AntiCheatService } from "./server/services/anti-cheat";
 import { ServerPdfService } from "./server/services/pdf-service";
 import { PaymentVerificationService } from "./server/services/payment-verification-service";
 import { ProductionTestSuiteRunner } from "./server/test-suite";
+import { query, isPostgresConfigured } from "./server/db/supabase-client";
 import {
   RegistrationInputSchema,
   QuizAnswerSubmissionSchema,
@@ -163,13 +164,37 @@ async function startServer(): Promise<void> {
         });
       }
 
-      // Check duplicate registration
+      // Check duplicate registration — block ALL re-registration by phone+event.
+      // Even if quiz is incomplete, return existing registration so the same
+      // user can continue their quiz attempt instead of creating a duplicate.
       const existing = await db.findRegistrationByPhoneAndEventAsync(input.whatsapp_number, seminar.event.id);
       if (existing) {
-        // Return existing registration link securely
+        // Generate a fresh secure token for the existing registration so the
+        // user can immediately resume their learning/quiz journey.
+        const rawTokenResume = AntiCheatService.generateSecureToken();
+        const newTokenHash = AntiCheatService.hashToken(rawTokenResume);
+        // Update existing registration's token hash (in-memory + Postgres)
+        existing.secure_token_hash = newTokenHash;
+        existing.updated_at = new Date().toISOString();
+        if (isPostgresConfigured()) {
+          await query(
+            `UPDATE seminar_registrations SET secure_token_hash = $1, updated_at = NOW() WHERE id = $2`,
+            [newTokenHash, existing.id]
+          ).catch((err: any) => console.error("[register] Failed to refresh token in Postgres:", err));
+        }
+        db.persist();
+
+        // Check if quiz already completed — show different message
+        const quizResults = db.getLeaderboardForEvent(seminar.event.id);
+        const quizAlreadyCompleted = quizResults.find(r => r.displayName === existing.display_name);
+
         return res.status(200).json({
-          message: "You are already registered for this seminar event.",
+          message: quizAlreadyCompleted
+            ? "आप इस सेमिनार के लिए पहले ही पंजीकृत हैं और क्विज़ पूरा कर चुके हैं। डुप्लिकेट पंजीकरण की अनुमति नहीं है।"
+            : "आप इस सेमिनार के लिए पहले ही पंजीकृत हैं। अपना सीखना जारी रखने के लिए नीचे दिए गए लिंक का उपयोग करें।",
           isExisting: true,
+          quizAlreadyCompleted: !!quizAlreadyCompleted,
+          quizScore: quizAlreadyCompleted?.score,
           registration: {
             id: existing.id,
             registration_id: existing.registration_id,
@@ -179,6 +204,8 @@ async function startServer(): Promise<void> {
             seminar_event_id: existing.seminar_event_id,
             created_at: existing.created_at
           },
+          token: rawTokenResume,
+          secureLink: `/learn/${rawTokenResume}`,
           seminar: {
             dateEn: settings.seminar_date_en || seminar.formattedDateEn,
             dateHi: settings.seminar_date_hi || seminar.formattedDateHi,
@@ -1320,6 +1347,8 @@ async function startServer(): Promise<void> {
       const auditLogs = db.getAllAuditLogs().slice(0, 30);
       const driveStatus = GoogleDriveService.getIntegrationStatus();
       const passPurchases = db.getAllPassPurchases();
+      const scholarshipSubmissions = db.getAllScholarshipSubmissions();
+      const scholarshipWinners = db.getScholarshipWinners();
 
       res.json({
         metrics,
@@ -1330,7 +1359,9 @@ async function startServer(): Promise<void> {
         whatsAppMessages,
         auditLogs,
         driveStatus,
-        passPurchases
+        passPurchases,
+        scholarshipSubmissions,
+        scholarshipWinners
       });
     } catch (err: any) {
       res.status(500).json({ error: "Failed to load dashboard data", details: err?.message });

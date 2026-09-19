@@ -144,11 +144,33 @@ export async function ensureSchema(): Promise<void> {
     CREATE INDEX IF NOT EXISTS idx_schol_sub_participant ON scholarship_submissions (participant_id);
     CREATE INDEX IF NOT EXISTS idx_schol_sub_score ON scholarship_submissions (score DESC, duration_seconds ASC);
     CREATE INDEX IF NOT EXISTS idx_schol_sub_event ON scholarship_submissions (seminar_event_id);
+
+    -- Seminar quiz results (2-min quiz scoring — persisted across cold starts)
+    CREATE TABLE IF NOT EXISTS quiz_results (
+      id TEXT PRIMARY KEY,
+      attempt_id TEXT NOT NULL,
+      participant_id TEXT NOT NULL,
+      seminar_event_id TEXT NOT NULL,
+      registration_id TEXT,
+      participant_name TEXT,
+      whatsapp_number TEXT,
+      city TEXT,
+      display_name TEXT,
+      score INTEGER NOT NULL,
+      total_questions INTEGER NOT NULL DEFAULT 4,
+      duration_seconds INTEGER NOT NULL,
+      result_status TEXT NOT NULL DEFAULT 'participated',
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      UNIQUE (participant_id, seminar_event_id)
+    );
+    CREATE INDEX IF NOT EXISTS idx_quiz_results_event ON quiz_results (seminar_event_id);
+    CREATE INDEX IF NOT EXISTS idx_quiz_results_score ON quiz_results (score DESC, duration_seconds ASC);
+    CREATE INDEX IF NOT EXISTS idx_quiz_results_participant ON quiz_results (participant_id);
   `);
   if (result === null) {
     console.warn("[supabase-client] ensureSchema failed — Postgres not available");
   } else {
-    console.log("[supabase-client] schema ensured (admin + registrations + scholarship)");
+    console.log("[supabase-client] schema ensured (admin + registrations + scholarship + quiz_results)");
   }
   migrationChecked = true;
 }

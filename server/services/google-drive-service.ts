@@ -36,6 +36,8 @@ export class GoogleDriveService {
     const records = db.getAllRegistrations(eventId ? { eventId } : undefined);
     const leads = db.getAllAdmissionLeads();
     const whatsappMsgs = db.getAllWhatsAppMessages();
+    const scholarshipSubs = db.getAllScholarshipSubmissions();
+    const passPurchases = db.getAllPassPurchases();
 
     const headers = [
       "Registration ID (सीट नंबर)",
@@ -53,7 +55,20 @@ export class GoogleDriveService {
       "2-Min AI Quiz Status (क्विज स्थिति)",
       "Quiz Score (स्कोर)",
       "Quiz Duration (Seconds)",
-      "CRM Lead Pipeline Stage (लीड स्टेटस)",
+      "Quiz Result Status",
+      "₹199 Pass Purchase Status",
+      "Pass Purchase Amount (₹)",
+      "Pass Purchase Date",
+      "Pass Verified",
+      "Scholarship Quiz Attempted",
+      "Scholarship Quiz Score",
+      "Scholarship Quiz Duration (Seconds)",
+      "Scholarship Rank",
+      "Scholarship Prize Won",
+      "Prize Type (cash/gift)",
+      "Cash Prize Amount (₹)",
+      "Scholarship Amount (₹)",
+      "CRM Lead Pipeline Stage (लीड स्टेज)",
       "Counselor Notes (काउंसलर टिप्पणियां)",
       "Follow-up Date (अगली कॉल दिनांक)",
       "WhatsApp Dispatch Status (व्हाट्सएप स्थिति)",
@@ -69,15 +84,38 @@ export class GoogleDriveService {
     const rows = records.map(r => {
       const lead = leads.find(l => l.participant_id === r.id);
       const wsMsg = whatsappMsgs.find(w => w.participant_id === r.id);
+      const pass = passPurchases.find(p => p.participant_id === r.id);
+      const sch = scholarshipSubs.find(s => s.participantId === r.id);
 
       const quizStatus = r.quizResult ? "Attempted" : "Not Attempted";
-      const quizScore = r.quizResult ? `${r.quizResult.score} / 20` : "N/A";
+      const quizScore = r.quizResult ? `${r.quizResult.score} / ${r.quizResult.total_questions || 5}` : "N/A";
       const quizDuration = r.quizResult ? r.quizResult.duration_seconds : "N/A";
+      const quizResultStatus = r.quizResult ? r.quizResult.result_status : "N/A";
+
+      const hasPass = pass ? "Purchased" : "Not Purchased";
+      const passAmount = pass?.amount_paid || (pass ? 199 : 0);
+      const passDate = pass?.created_at || "";
+      const passVerified = pass?.verification_status === "verified" ? "Yes" : "No";
+
+      const schAttempted = sch ? "Yes" : "No";
+      const schScore = sch ? `${sch.score} / ${sch.totalQuestions}` : "N/A";
+      const schDuration = sch ? sch.durationSeconds : "N/A";
+      const schRank = sch ? `#${sch.rank}` : "N/A";
+      const schPrize = sch?.prizeText || "N/A";
+      const schPrizeType = sch?.prizeType || "N/A";
+      const cashPrize = sch?.prizeType?.startsWith("cash") ? (sch as any).cashPrize || 0 : 0;
+      const schAmount = sch?.prizeType?.startsWith("scholarship") ? (sch as any).scholarshipAmount || 0 : 0;
+
       const leadStage = lead?.status || r.leadStatus || "New";
       const notes = lead?.notes || "";
       const followUp = lead?.follow_up_date || "";
       const wsStatus = wsMsg?.status || "delivered";
-      const marketingGroup = "AI Seminar 2026 Direct Admission Lead";
+      // Marketing group based on engagement
+      let marketingGroup = "AI Seminar 2026 Lead";
+      if (sch) marketingGroup = "Scholarship Quiz Participant — Hot Lead";
+      else if (pass) marketingGroup = "Pass Holder — High Intent";
+      else if (r.quizResult && r.quizResult.score >= 3) marketingGroup = "Quiz Winner — Hot Lead";
+      else if (r.quizResult) marketingGroup = "Quiz Attempted — Warm Lead";
 
       return [
         escapeCSV(r.registration_id),
@@ -95,6 +133,19 @@ export class GoogleDriveService {
         escapeCSV(quizStatus),
         escapeCSV(quizScore),
         escapeCSV(quizDuration),
+        escapeCSV(quizResultStatus),
+        escapeCSV(hasPass),
+        escapeCSV(passAmount),
+        escapeCSV(passDate),
+        escapeCSV(passVerified),
+        escapeCSV(schAttempted),
+        escapeCSV(schScore),
+        escapeCSV(schDuration),
+        escapeCSV(schRank),
+        escapeCSV(schPrize),
+        escapeCSV(schPrizeType),
+        escapeCSV(cashPrize),
+        escapeCSV(schAmount),
         escapeCSV(leadStage),
         escapeCSV(notes),
         escapeCSV(followUp),

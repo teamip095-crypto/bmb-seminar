@@ -273,6 +273,25 @@ class DatabaseService {
       }));
       console.log(`[db] loaded ${subRes.rows.length} scholarship submissions from Postgres`);
     }
+
+    // Load quiz results (2-min seminar quiz — persisted)
+    const qrRes = await query(`
+      SELECT id, attempt_id, participant_id, seminar_event_id, score, total_questions,
+             duration_seconds, result_status, created_at
+      FROM quiz_results
+      ORDER BY created_at DESC
+      LIMIT 500
+    `);
+    if (qrRes && qrRes.rows.length > 0) {
+      this.data.quiz_results = qrRes.rows.map((r: any) => ({
+        id: r.id, attempt_id: r.attempt_id, participant_id: r.participant_id,
+        seminar_event_id: r.seminar_event_id, score: r.score,
+        total_questions: r.total_questions, duration_seconds: r.duration_seconds,
+        result_status: r.result_status,
+        created_at: new Date(r.created_at).toISOString()
+      }));
+      console.log(`[db] loaded ${qrRes.rows.length} quiz results from Postgres`);
+    }
   }
 
   // --- SEMINAR SETTINGS (ADMIN CONTROLLED) ---
@@ -397,7 +416,7 @@ class DatabaseService {
     });
   }
 
-  private persist(): void {
+  public persist(): void {
     try {
       const dataDir = path.dirname(this.dbFilePath);
       if (!fs.existsSync(dataDir)) {
@@ -936,6 +955,37 @@ class DatabaseService {
       created_at: submittedAt
     };
     this.data.quiz_results.push(newResult);
+
+    // Persist quiz result to Postgres — survives Vercel cold starts
+    if (isPostgresConfigured()) {
+      // Look up registration for display_name, whatsapp, city, registration_id
+      const reg = this.data.seminar_registrations.find(r => r.id === attempt.participant_id);
+      const regId = reg?.registration_id || null;
+      const pName = reg?.name || null;
+      const pPhone = reg?.whatsapp_number || null;
+      const pCity = reg?.city || null;
+      const dName = reg?.display_name || null;
+
+      query(
+        `INSERT INTO quiz_results
+          (id, attempt_id, participant_id, seminar_event_id, registration_id,
+           participant_name, whatsapp_number, city, display_name,
+           score, total_questions, duration_seconds, result_status, created_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, NOW())
+         ON CONFLICT (participant_id, seminar_event_id) DO UPDATE SET
+           attempt_id = EXCLUDED.attempt_id,
+           score = EXCLUDED.score,
+           total_questions = EXCLUDED.total_questions,
+           duration_seconds = EXCLUDED.duration_seconds,
+           result_status = EXCLUDED.result_status,
+           created_at = NOW()`,
+        [
+          newResult.id, newResult.attempt_id, newResult.participant_id, newResult.seminar_event_id,
+          regId, pName, pPhone, pCity, dName,
+          newResult.score, newResult.total_questions, newResult.duration_seconds, newResult.result_status
+        ]
+      ).catch(err => console.error("[db] Failed to persist quiz result to Postgres:", err));
+    }
 
     // Update CRM Lead with score
     const lead = this.data.admission_leads.find(l => l.participant_id === attempt.participant_id);
