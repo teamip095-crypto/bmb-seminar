@@ -352,9 +352,14 @@ export const AdminCRMView: React.FC<AdminCRMViewProps> = ({ seminarStatus, onSem
 
       setForgotMaskedPhone(data.whatsapp_masked || null);
       setForgotDirectWhatsAppLink(data.directWhatsAppLink || null);
-      setForgotSimulatedOtp(data.simulatedOtp || null);
+      setForgotSimulatedOtp(null); // Never trust simulatedOtp — backend no longer returns it
       setForgotStep("verify");
-      setForgotStatusMessage(`✓ 6-अंकों का OTP कोड आपके पंजीकृत WhatsApp नंबर (${data.whatsapp_masked || ""}) पर भेज दिया गया है!`);
+      // Show honest message based on whether WhatsApp API is configured
+      if (data.whatsappConfigured === false) {
+        setForgotStatusMessage(`⚠️ WhatsApp API अभी कॉन्फ़िगर नहीं है। OTP देखने के लिए नीचे दिए गए "Open WhatsApp Chat" बटन पर क्लिक करें — आपके WhatsApp में OTP के साथ एक संदेश खुलेगा। संदेश भेजने के बाद उस OTP को नीचे दर्ज करें। (वैकल्पिक: WhatsApp Business API क्रेडेंशियल्स सेट करने के लिए Vercel env vars WHATSAPP_API_TOKEN और WHATSAPP_PHONE_NUMBER_ID भरें)`);
+      } else {
+        setForgotStatusMessage(`✓ 6-अंकों का OTP कोड आपके पंजीकृत WhatsApp नंबर (${data.whatsapp_masked || ""}) पर भेज दिया गया है!`);
+      }
     } catch (err: any) {
       setForgotStatusMessage("❌ " + (err.message || "OTP भेजने में विफल"));
     } finally {
@@ -1431,39 +1436,33 @@ export const AdminCRMView: React.FC<AdminCRMViewProps> = ({ seminarStatus, onSem
               {/* STEP 2: VERIFY OTP AND SET NEW PASSWORD */}
               {forgotStep === "verify" && (
                 <form onSubmit={handleResetPasswordWithOTP} className="space-y-4">
-                  {/* WhatsApp Direct Open Helper */}
+                  {/* WhatsApp Direct Open Helper — fallback when WhatsApp API not configured.
+                      User clicks this → opens WhatsApp chat prefilled with OTP message →
+                      user sends the message to themselves → reads OTP from chat → enters it below. */}
                   {forgotDirectWhatsAppLink && (
-                    <div className="p-3 bg-emerald-950/40 border border-emerald-800/60 rounded-xl space-y-2">
-                      <div className="text-[11px] text-emerald-300 font-semibold flex items-center gap-1.5">
-                        <MessageSquare className="w-3.5 h-3.5 text-emerald-400" />
-                        <span>WhatsApp पर OTP मैसेज आ गया है:</span>
+                    <div className="p-3 bg-amber-950/40 border-2 border-amber-700/70 rounded-xl space-y-2">
+                      <div className="text-[11px] text-amber-300 font-bold flex items-center gap-1.5">
+                        <MessageSquare className="w-3.5 h-3.5 text-amber-400" />
+                        <span>OTP देखने के लिए नीचे दिए गए बटन पर क्लिक करें:</span>
                       </div>
+                      <p className="text-[10px] text-amber-200/70 leading-snug">
+                        बटन पर क्लिक करें → आपके WhatsApp में OTP के साथ एक संदेश खुलेगा → "Send" बटन दबाएं → आपको OTP अपने चैट में दिखेगा।
+                      </p>
                       <a
                         href={forgotDirectWhatsAppLink}
                         target="_blank"
                         rel="noreferrer"
-                        className="inline-flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-[11px] px-3 py-1.5 rounded-lg shadow-sm"
+                        className="inline-flex items-center gap-1.5 bg-amber-600 hover:bg-amber-500 text-white font-bold text-[11px] px-4 py-2 rounded-lg shadow-sm"
                       >
                         <Smartphone className="w-3.5 h-3.5" />
-                        <span>WhatsApp ओपन करें (Open WhatsApp)</span>
+                        <span>WhatsApp में OTP देखें (Open WhatsApp)</span>
                         <ExternalLink className="w-3 h-3 ml-1" />
                       </a>
                     </div>
                   )}
 
-                  {/* Simulated OTP Display for Sandbox / Dev testing */}
-                  {forgotSimulatedOtp && (
-                    <div className="p-2.5 bg-amber-500/10 border border-amber-500/30 rounded-xl text-[11px] text-amber-300 flex items-center justify-between">
-                      <span>परीक्षण OTP कोड: <strong>{forgotSimulatedOtp}</strong></span>
-                      <button
-                        type="button"
-                        onClick={() => setForgotOTP(forgotSimulatedOtp)}
-                        className="text-[10px] bg-amber-500/30 hover:bg-amber-500/50 text-amber-200 px-2 py-0.5 rounded cursor-pointer"
-                      >
-                        Auto-fill OTP
-                      </button>
-                    </div>
-                  )}
+                  {/* Simulated OTP Display — DISABLED (security hole). Backend no longer returns it. */}
+                  {forgotSimulatedOtp && null}
 
                   <div>
                     <label className="block text-xs font-semibold text-neutral-300 mb-1">

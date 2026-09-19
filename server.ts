@@ -1252,12 +1252,25 @@ async function startServer(): Promise<void> {
         ? `${clean.slice(0, 2)}******${clean.slice(-4)}`
         : clean;
 
+      // When WhatsApp API is NOT configured, be honest with the user —
+      // DO NOT pretend the OTP was sent. Show the directWhatsAppLink as the
+      // actual recovery method (user clicks it, opens WhatsApp chat prefilled
+      // with OTP, sends to themselves, then enters OTP in the form).
+      // When WhatsApp API IS configured, OTP is sent automatically — user just
+      // enters the OTP received in their WhatsApp chat.
+      const isWhatsAppConfigured = waResult.status !== "pending_configuration";
+
       res.json({
-        message: `✓ 6-अंकों का पासवर्ड रीसेट OTP आपके पंजीकृत WhatsApp नंबर (${maskedPhone}) पर भेज दिया गया है!`,
+        message: isWhatsAppConfigured
+          ? `✓ 6-अंकों का पासवर्ड रीसेट OTP आपके पंजीकृत WhatsApp नंबर (${maskedPhone}) पर भेज दिया गया है!`
+          : `⚠️ WhatsApp API अभी कॉन्फ़िगर नहीं है। OTP प्राप्त करने के लिए नीचे दिए गए "Open WhatsApp" बटन पर क्लिक करें — यह आपके WhatsApp में OTP के साथ एक संदेश खोलेगा। संदेश भेजने के बाद आप उस OTP को नीचे दर्ज कर सकते हैं।`,
         whatsapp_masked: maskedPhone,
         identifier: admin.email,
         directWhatsAppLink: waResult.directWhatsAppLink,
-        simulatedOtp: waResult.status === "pending_configuration" ? otp : undefined
+        whatsappConfigured: isWhatsAppConfigured,
+        // SECURITY: Never expose the OTP in API response.
+        // User gets OTP only via WhatsApp (configured API) OR via directWhatsAppLink (fallback).
+        // NO simulatedOtp field — that was a security hole.
       });
     } catch (err: any) {
       res.status(500).json({ error: "पासवर्ड रीसेट कोड भेजने में विफल", details: err?.message });
