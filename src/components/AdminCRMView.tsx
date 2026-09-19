@@ -1631,32 +1631,48 @@ export const AdminCRMView: React.FC<AdminCRMViewProps> = ({ seminarStatus, onSem
         </div>
       </div>
 
-      {/* Metrics Row */}
+      {/* Metrics Row — 8 cards showing all key admin stats at a glance */}
       {m && (
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-3 mb-4 sm:mb-6">
+        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2 sm:gap-3 mb-4 sm:mb-6">
           <div className="bg-neutral-900 border border-neutral-800 rounded-xl sm:rounded-2xl p-3 sm:p-3.5">
-            <span className="text-[9px] sm:text-[10px] text-neutral-400 uppercase font-bold tracking-wider">Total Leads</span>
+            <span className="text-[9px] sm:text-[10px] text-neutral-400 uppercase font-bold tracking-wider">Total Registrations</span>
             <div className="text-lg sm:text-xl font-bold text-white mt-0.5 sm:mt-1 font-mono">{m.totalRegistrations}</div>
+            <div className="text-[9px] text-neutral-500 mt-0.5">सभी इवेंट्स कुल</div>
           </div>
-          <div className="bg-neutral-900 border border-neutral-800 rounded-xl sm:rounded-2xl p-3 sm:p-3.5">
-            <span className="text-[9px] sm:text-[10px] text-amber-400 uppercase font-bold tracking-wider">Seminar Event</span>
+          <div className="bg-neutral-900 border border-amber-500/30 rounded-xl sm:rounded-2xl p-3 sm:p-3.5">
+            <span className="text-[9px] sm:text-[10px] text-amber-400 uppercase font-bold tracking-wider">Current Event Regs</span>
             <div className="text-lg sm:text-xl font-bold text-amber-400 mt-0.5 sm:mt-1 font-mono">{m.activeEventRegistrations}</div>
+            <div className="text-[9px] text-neutral-500 mt-0.5">आज के सेमिनार में</div>
           </div>
-          <div className="bg-neutral-900 border border-neutral-800 rounded-xl sm:rounded-2xl p-3 sm:p-3.5">
-            <span className="text-[9px] sm:text-[10px] text-emerald-400 uppercase font-bold tracking-wider">Quizzes Taken</span>
+          <div className="bg-neutral-900 border border-emerald-500/30 rounded-xl sm:rounded-2xl p-3 sm:p-3.5">
+            <span className="text-[9px] sm:text-[10px] text-emerald-400 uppercase font-bold tracking-wider">2-Min Quiz Done</span>
             <div className="text-lg sm:text-xl font-bold text-emerald-400 mt-0.5 sm:mt-1 font-mono">{m.quizCompleted}</div>
+            <div className="text-[9px] text-neutral-500 mt-0.5">क्विज़ पूरा किया</div>
           </div>
-          <div className="bg-neutral-900 border border-neutral-800 rounded-xl sm:rounded-2xl p-3 sm:p-3.5">
-            <span className="text-[9px] sm:text-[10px] text-sky-400 uppercase font-bold tracking-wider">Avg Score</span>
-            <div className="text-lg sm:text-xl font-bold text-sky-400 mt-0.5 sm:mt-1 font-mono">{m.averageScore} / 20</div>
+          <div className="bg-neutral-900 border border-sky-500/30 rounded-xl sm:rounded-2xl p-3 sm:p-3.5">
+            <span className="text-[9px] sm:text-[10px] text-sky-400 uppercase font-bold tracking-wider">Avg Quiz Score</span>
+            <div className="text-lg sm:text-xl font-bold text-sky-400 mt-0.5 sm:mt-1 font-mono">{m.averageScore} / 5</div>
+            <div className="text-[9px] text-neutral-500 mt-0.5">औसत स्कोर</div>
           </div>
-          <div className="bg-neutral-900 border border-neutral-800 rounded-xl sm:rounded-2xl p-3 sm:p-3.5">
-            <span className="text-[9px] sm:text-[10px] text-amber-300 uppercase font-bold tracking-wider">20/20 Scorers</span>
+          <div className="bg-neutral-900 border border-amber-500/30 rounded-xl sm:rounded-2xl p-3 sm:p-3.5">
+            <span className="text-[9px] sm:text-[10px] text-amber-300 uppercase font-bold tracking-wider">Top Performers</span>
             <div className="text-lg sm:text-xl font-bold text-amber-300 mt-0.5 sm:mt-1 font-mono">{m.topPerformersCount}</div>
+            <div className="text-[9px] text-neutral-500 mt-0.5">स्कोर ≥ 4 / 5</div>
+          </div>
+          <div className="bg-neutral-900 border border-purple-500/30 rounded-xl sm:rounded-2xl p-3 sm:p-3.5">
+            <span className="text-[9px] sm:text-[10px] text-purple-400 uppercase font-bold tracking-wider">Scholarship Done</span>
+            <div className="text-lg sm:text-xl font-bold text-purple-400 mt-0.5 sm:mt-1 font-mono">{m.scholarshipCompleted || 0}</div>
+            <div className="text-[9px] text-neutral-500 mt-0.5">स्कॉलरशिप क्विज़</div>
+          </div>
+          <div className="bg-neutral-900 border border-yellow-500/40 rounded-xl sm:rounded-2xl p-3 sm:p-3.5">
+            <span className="text-[9px] sm:text-[10px] text-yellow-400 uppercase font-bold tracking-wider">Scholarship Winners</span>
+            <div className="text-lg sm:text-xl font-bold text-yellow-400 mt-0.5 sm:mt-1 font-mono">{m.scholarshipWinnersCount || 0}</div>
+            <div className="text-[9px] text-neutral-500 mt-0.5">टॉप 10 विजेता</div>
           </div>
           <div className="bg-neutral-900 border border-neutral-800 rounded-xl sm:rounded-2xl p-3 sm:p-3.5">
-            <span className="text-[9px] sm:text-[10px] text-purple-400 uppercase font-bold tracking-wider">Scholarship Tests</span>
-            <div className="text-lg sm:text-xl font-bold text-white mt-0.5 sm:mt-1 font-mono">{scholarshipList.length}</div>
+            <span className="text-[9px] sm:text-[10px] text-neutral-400 uppercase font-bold tracking-wider">Pass Holders</span>
+            <div className="text-lg sm:text-xl font-bold text-white mt-0.5 sm:mt-1 font-mono">{dashboardData?.passPurchases?.length || 0}</div>
+            <div className="text-[9px] text-neutral-500 mt-0.5">₹199 पास खरीदा</div>
           </div>
         </div>
       )}
