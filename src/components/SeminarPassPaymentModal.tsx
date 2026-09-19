@@ -319,8 +319,17 @@ export const SeminarPassPaymentModal: React.FC<SeminarPassPaymentModalProps> = (
                       </div>
                     </div>
                   ) : (
-                    <div className="w-48 h-48 flex items-center justify-center bg-neutral-100 rounded-xl">
+                    <div className="w-48 h-48 flex flex-col items-center justify-center bg-neutral-100 rounded-xl space-y-2">
                       <Clock className="w-8 h-8 text-neutral-400 animate-spin" />
+                      <span className="text-[10px] text-neutral-500">QR लोड हो रहा है...</span>
+                      {/* Fallback: online QR generator API in case local QRCode lib fails */}
+                      <img
+                        src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(upiDeepLink)}&color=0a0a0a&bgcolor=ffffff&qzone=1`}
+                        alt="UPI QR Fallback"
+                        className="w-40 h-40 object-contain"
+                        onLoad={() => console.log("Fallback QR loaded")}
+                        onError={() => console.error("Fallback QR also failed")}
+                      />
                     </div>
                   )}
 

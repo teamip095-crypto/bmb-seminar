@@ -636,8 +636,9 @@ export const QuizArenaView: React.FC<QuizArenaViewProps> = ({
 
   // =========================================================================
   // VIEW: STAGE 1 SUBMISSION RESULT (Top 10 Winner or ₹199 Pass Offer)
+  // Only show this when currentStage === "stage1" — don't hijack Stage 2 view!
   // =========================================================================
-  if (r1Submission) {
+  if (r1Submission && currentStage === "stage1") {
     const isWinner = r1Submission.isFreePassWinner;
     const isQualified = r1Submission.isQualified ?? (r1Submission.durationSeconds <= 120 && r1Submission.score >= 3);
 
@@ -1104,12 +1105,25 @@ export const QuizArenaView: React.FC<QuizArenaViewProps> = ({
         </button>
 
         <button
-          onClick={() => setCurrentStage("stage2")}
+          onClick={() => {
+            // If user has no pass yet, opening Stage 2 should auto-open the payment modal
+            // instead of switching to a locked view.
+            if (!passStatus.eligibleForRound2) {
+              setIsPaymentModalOpen(true);
+              return;
+            }
+            // Otherwise, switch to Stage 2 view (will show "Locked by Admin" if Stage 2
+            // is not yet activated by admin from dashboard).
+            setCurrentStage("stage2");
+          }}
           className={`flex-1 py-2.5 rounded-xl text-xs sm:text-sm font-bold flex items-center justify-center gap-2 transition-all cursor-pointer ${
             currentStage === "stage2"
               ? "bg-amber-500 text-neutral-950 shadow-md font-black"
-              : "text-neutral-400 hover:text-white"
+              : passStatus.eligibleForRound2
+              ? "text-neutral-300 hover:text-white"
+              : "text-neutral-500 cursor-not-allowed hover:text-neutral-400"
           }`}
+          title={!passStatus.eligibleForRound2 ? "₹199 सेमिनार पास खरीदें या Top 10 विजेता बनें" : ""}
         >
           <Trophy className="w-4 h-4" />
           <span>Stage 2: Mega Quiz</span>
